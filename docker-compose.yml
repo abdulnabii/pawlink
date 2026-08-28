@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pawlink_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: pawlink_user
+      POSTGRES_PASSWORD: pawlink_secure_password_2026
+      POSTGRES_DB: pawlink_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pawlink_pgdata:/var/lib/postgresql/data
+
+volumes:
+  pawlink_pgdata:

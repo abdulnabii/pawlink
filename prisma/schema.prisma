@@ -1,0 +1,368 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                     String                  @id @default(cuid())
+  authUserId             String?                 @unique // Supabase Auth User UUID
+  email                  String                  @unique
+  passwordHash           String?
+  name                   String
+  phone                  String?
+  avatarUrl              String?
+  role                   String                  @default("OWNER") // OWNER, CARETAKER, ADMIN
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  pets                   Pet[]
+  tagAssignments         TagAssignment[]
+  notificationPreference NotificationPreference?
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  familyMemberships      FamilyMember[]
+  subscriptions          Subscription[]
+}
+
+model Pet {
+  id                  String             @id @default(cuid())
+  userId              String
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  species             String             // Dog, Cat, Bird, etc.
+  breed               String?
+  gender              String?            // Male, Female
+  birthDate           DateTime?
+  weight              Float?             // in kg
+  color               String?
+  photoUrl            String?
+  microchipNumber     String?
+  personality         String?
+  specialInstructions String?
+  status              String             @default("SAFE") // SAFE, LOST, RECOVERED, DECEASED, ARCHIVED
+  
+  // Privacy & Contact Preferences
+  contactPhone        String?
+  allowWhatsApp       Boolean            @default(true)
+  allowPhoneCall      Boolean            @default(false)
+  allowInAppChat      Boolean            @default(true)
+  hideOwnerPhone      Boolean            @default(true)
+  
+  // Relations
+  photos              PetPhoto[]
+  medicalRecords      PetMedicalRecord[]
+  tagAssignments      TagAssignment[]
+  recoveryCases       RecoveryCase[]
+  recoveryEvents      RecoveryEvent[]
+  conversations       Conversation[]
+  devices             Device[]
+  familyMembers       FamilyMember[]
+  
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model PetPhoto {
+  id        String   @id @default(cuid())
+  petId     String
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model PetMedicalRecord {
+  id               String    @id @default(cuid())
+  petId            String
+  pet              Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  recordType       String    // VACCINATION, ALLERGY, MEDICATION, MEDICAL_CONDITION, VET_NOTE
+  title            String
+  description      String?
+  dateAdministered DateTime?
+  nextDueDate      DateTime?
+  veterinarian     String?
+  documentUrl      String?
+  isPublicAlert    Boolean   @default(false) // If true, exposed safely on public scan recovery page
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([petId])
+}
+
+model Tag {
+  id            String          @id @default(cuid())
+  tagCode       String          @unique // High-entropy secure slug (e.g. PW-7KX9Q2M8F4R6T1)
+  status        String          @default("ACTIVE") // ACTIVE, INACTIVE, DAMAGED, REVOKED
+  qrUrl         String
+  label         String?
+  activationPin String?         // Physical tag activation PIN
+  scanCount     Int             @default(0)
+  lastScannedAt DateTime?
+  assignments   TagAssignment[]
+  scanEvents    ScanEvent[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([tagCode])
+  @@index([status])
+}
+
+model TagAssignment {
+  id           String    @id @default(cuid())
+  tagId        String
+  tag          Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  petId        String
+  pet          Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  assignedById String
+  assignedBy   User      @relation(fields: [assignedById], references: [id])
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+
+  @@index([tagId])
+  @@index([petId])
+  @@index([unassignedAt])
+}
+
+model RecoveryCase {
+  id                String             @id @default(cuid())
+  petId             String
+  pet               Pet                @relation(fields: [petId], references: [id], onDelete: Cascade)
+  status            String             @default("OPEN") // OPEN, RESOLVED, CANCELLED
+  startedAt         DateTime           @default(now())
+  lastSeenAt        DateTime           @default(now())
+  lastSeenLocation  String?            // Area description (e.g. "Clifton Block 4")
+  lastSeenLatitude  Float?
+  lastSeenLongitude Float?
+  rewardAmount      Decimal?           @default(0)
+  description       String?            // Instructions & circumstances
+  resolvedAt        DateTime?
+  resolutionNote    String?            // Recovery celebration story
+  
+  recoveryEvents    RecoveryEvent[]
+  scanEvents        ScanEvent[]
+  locationEvents    LocationEvent[]
+  conversations     Conversation[]
+  
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([petId])
+  @@index([status])
+}
+
+model RecoveryEvent {
+  id             String        @id @default(cuid())
+  petId          String
+  pet            Pet           @relation(fields: [petId], references: [id], onDelete: Cascade)
+  recoveryCaseId String?
+  recoveryCase   RecoveryCase? @relation(fields: [recoveryCaseId], references: [id], onDelete: SetNull)
+  type           String        // TAG_SCANNED, LOCATION_SHARED, MESSAGE_RECEIVED, etc.
+  actorType      String        // FINDER, OWNER, SYSTEM
+  actorId        String?
+  title          String
+  description    String?
+  metadata       String?
+  createdAt      DateTime      @default(now())
+
+  @@index([petId])
+  @@index([recoveryCaseId])
+  @@index([createdAt])
+}
+
+model ScanEvent {
+  id                  String        @id @default(cuid())
+  tagId               String
+  tag                 Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  recoveryCaseId      String?
+  recoveryCase        RecoveryCase? @relation(fields: [recoveryCaseId], references: [id], onDelete: SetNull)
+  timestamp           DateTime      @default(now())
+  isTestScan          Boolean       @default(false)
+  ipHash              String        // Salted SHA-256 hash of IP
+  idempotencyKey      String?       @unique // Deduplication token
+  userAgentCategory   String?       // Mobile, Desktop, Tablet
+  deviceType          String?       // iOS, Android, macOS, Windows
+  browser             String?       // Safari, Chrome, etc.
+  country             String?
+  city                String?
+  approximateLocation String?       // e.g. "Karachi, Pakistan"
+  scanSource          String        @default("QR") // QR, NFC, DIRECT
+  notificationSent    Boolean       @default(false)
+
+  @@index([tagId])
+  @@index([timestamp])
+  @@index([isTestScan])
+}
+
+model LocationEvent {
+  id                String        @id @default(cuid())
+  recoveryCaseId    String?
+  recoveryCase      RecoveryCase? @relation(fields: [recoveryCaseId], references: [id], onDelete: SetNull)
+  latitude          Float
+  longitude         Float
+  accuracy          Float?        // In meters
+  addressName       String?       // e.g. "Near Clifton, Karachi"
+  locationConsentAt DateTime      @default(now())
+  locationExpiresAt DateTime?     // Auto-expiry TTL (default 30 days)
+  sharedByFinder    Boolean       @default(true)
+  finderNote        String?
+  finderContact     String?
+  createdAt         DateTime      @default(now())
+
+  @@index([recoveryCaseId])
+  @@index([createdAt])
+}
+
+model Conversation {
+  id                 String        @id @default(cuid())
+  petId              String
+  pet                Pet           @relation(fields: [petId], references: [id], onDelete: Cascade)
+  recoveryCaseId     String?
+  recoveryCase       RecoveryCase? @relation(fields: [recoveryCaseId], references: [id], onDelete: SetNull)
+  finderToken        String        @unique // 256-bit cryptographically secure token
+  finderName         String?
+  finderPhone        String?
+  finderSessionHash  String?
+  status             String        @default("OPEN") // OPEN, CLOSED, BLOCKED
+  expiresAt          DateTime
+  lastFinderActivity DateTime      @default(now())
+  lastOwnerActivity  DateTime?
+  messages           Message[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([petId])
+  @@index([finderToken])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderType     String       // FINDER, OWNER, SYSTEM
+  content        String
+  photoUrl       String?      // EXIF-stripped image URL
+  read           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+model NotificationJob {
+  id               String    @id @default(cuid())
+  userId           String
+  deduplicationKey String?   @unique // Prevents duplicate jobs for the same scan/event
+  type             String    // SCAN_ALERT, LOCATION_ALERT, MESSAGE_ALERT, RECOVERY_ALERT
+  payload          String    // JSON string payload
+  status           String    @default("QUEUED") // QUEUED, PROCESSING, COMPLETED, FAILED, THROTTLED
+  attempts         Int       @default(0)
+  maxAttempts      Int       @default(4)
+  scheduledAt      DateTime  @default(now())
+  processedAt      DateTime?
+  lastError        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, scheduledAt])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  title      String
+  body       String
+  channel    String   @default("WHATSAPP") // WHATSAPP, EMAIL, SMS, PUSH, IN_APP
+  status     String   @default("SENT") // QUEUED, SENT, DELIVERED, READ, FAILED, THROTTLED
+  providerId String?
+  metadata   String?
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model NotificationPreference {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsappEnabled   Boolean @default(true)
+  whatsappVerified  Boolean @default(false)
+  emailEnabled      Boolean @default(true)
+  smsEnabled        Boolean @default(false)
+  pushEnabled       Boolean @default(true)
+  notifyOnScan      Boolean @default(true)
+  notifyOnLocation  Boolean @default(true)
+  notifyOnMessage   Boolean @default(true)
+  notificationPhone String?
+}
+
+model FamilyMember {
+  id             String   @id @default(cuid())
+  petId          String
+  pet            Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  email          String
+  name           String?
+  role           String   @default("CARETAKER")
+  inviteAccepted Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([petId])
+  @@index([email])
+}
+
+model Device {
+  id           String    @id @default(cuid())
+  petId        String
+  pet          Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  deviceType   String    // QR_TAG, NFC_TAG, GPS_COLLAR, BLUETOOTH_BEACON
+  serialNumber String?
+  batteryLevel Int?
+  status       String    @default("ACTIVE")
+  lastSeen     DateTime?
+  metadata     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([petId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  metadata   String?
+  ipHash     String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Subscription {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan              String    @default("FREE") // FREE, PLUS, PRO
+  status            String    @default("ACTIVE")
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+}
