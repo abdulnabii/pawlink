@@ -42,8 +42,11 @@ function SettingsContent() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  // Phone verification state
+  // Phone verification state (2-step OTP)
   const [phone, setPhone] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [demoCode, setDemoCode] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -114,7 +117,7 @@ function SettingsContent() {
 
   if (!mounted) return null;
 
-  const handleVerifyWhatsApp = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setVerifying(true);
     setVerifyError(null);
@@ -124,18 +127,43 @@ function SettingsContent() {
       const res = await fetch("/api/auth/whatsapp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, verified: true }),
+        body: JSON.stringify({ action: "SEND_OTP", phone }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Verification failed");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to dispatch verification code");
+
+      setOtpSent(true);
+      if (data.demoCode) setDemoCode(data.demoCode);
+    } catch (err: any) {
+      setVerifyError(err.message || "Could not dispatch WhatsApp code");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifying(true);
+    setVerifyError(null);
+
+    try {
+      const res = await fetch("/api/auth/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "VERIFY_OTP", code: otpCode }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verification failed");
 
       setVerifySuccess(true);
+      setOtpSent(false);
+      setDemoCode(null);
+      setOtpCode("");
       fetchUserData();
     } catch (err: any) {
-      setVerifyError(err.message || "Could not verify phone number");
+      setVerifyError(err.message || "Invalid verification code");
     } finally {
       setVerifying(false);
     }
@@ -443,49 +471,111 @@ function SettingsContent() {
           </span>
         </div>
 
-        <form onSubmit={handleVerifyWhatsApp} className="space-y-4 pt-2">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              WhatsApp Phone Number (With Country Code)
-            </label>
-            <div className="relative">
-              <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+        {!otpSent ? (
+          <form onSubmit={handleSendOtp} className="space-y-4 pt-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                WhatsApp Phone Number (With Country Code)
+              </label>
+              <div className="relative">
+                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+923001234567"
+                  className="w-full text-sm rounded-xl border border-slate-300 pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Please enter a full international number starting with <code>+</code> (e.g. <code>+923001234567</code> for PK, <code>+14155552671</code> for US).
+              </p>
+            </div>
+
+            {verifySuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>WhatsApp number verified successfully! You are now subscribed to instant scan alerts.</span>
+              </div>
+            )}
+
+            {verifyError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                {verifyError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={verifying}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all"
+            >
+              {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              <span>{isVerified ? "Send New Verification Code" : "Send WhatsApp OTP Code"}</span>
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="space-y-4 pt-2 animate-fadeIn">
+            <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl space-y-2 text-xs text-emerald-950">
+              <p className="font-bold">
+                Verification Code Sent to: <span className="font-mono">{phone}</span>
+              </p>
+              <p className="text-emerald-800 text-[11px]">
+                Please enter the 6-digit verification code below to confirm your phone.
+              </p>
+              {demoCode && (
+                <div className="pt-1 flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded">
+                    Demo Code
+                  </span>
+                  <code className="font-mono font-bold text-sm bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-900">
+                    {demoCode}
+                  </code>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Enter 6-Digit Code *
+              </label>
               <input
-                type="tel"
+                type="text"
                 required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+14155552671"
-                className="w-full text-sm rounded-xl border border-slate-300 pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value)}
+                placeholder="123456"
+                className="w-full text-center text-xl tracking-widest font-mono font-black rounded-xl border border-slate-300 py-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50"
               />
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Ensure you include the international code (e.g. +1 for US, +92 for PK, +44 for UK).
-            </p>
-          </div>
 
-          {verifySuccess && (
-            <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>WhatsApp number verified successfully! You are now subscribed to scan alerts.</span>
+            {verifyError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                {verifyError}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setOtpSent(false)}
+                className="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              >
+                Change Phone
+              </button>
+              <button
+                type="submit"
+                disabled={verifying || otpCode.length < 6}
+                className="w-2/3 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all"
+              >
+                {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                <span>Verify &amp; Activate</span>
+              </button>
             </div>
-          )}
-
-          {verifyError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-              {verifyError}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={verifying}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all"
-          >
-            {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-            <span>{isVerified ? "Update & Confirm WhatsApp Number" : "Verify & Enable WhatsApp Alerts"}</span>
-          </button>
-        </form>
+          </form>
+        )}
       </div>
 
       {/* MULTI-CHANNEL FALLBACK PREFERENCES */}

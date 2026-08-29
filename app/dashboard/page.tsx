@@ -205,7 +205,10 @@ export default function DashboardOverviewPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {safePets.map((pet) => {
-              const isLost = pet?.status === "LOST" || (Array.isArray(pet?.recoveryCases) && pet.recoveryCases.length > 0);
+              const isLost =
+                pet?.status === "LOST" ||
+                (Array.isArray(pet?.recoveryCases) &&
+                  pet.recoveryCases.some((rc: any) => rc?.status === "OPEN"));
               const activeTag = pet?.tagAssignments?.[0]?.tag;
 
               return (

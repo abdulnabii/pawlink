@@ -265,6 +265,35 @@ function createSelfHealingDb() {
         return { count: args.data?.length || 0 };
       },
     },
+    petMedicalRecord: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            const res = await rawPrisma.petMedicalRecord.findMany(args);
+            if (Array.isArray(res)) return res;
+          } catch {}
+        }
+        return await resilientStore.findMedicalRecords(args?.where?.petId);
+      },
+      create: async (args: any) => {
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.petMedicalRecord.create(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.createMedicalRecord(args.data);
+        return prismaRes || storeRes;
+      },
+      delete: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            await rawPrisma.petMedicalRecord.delete(args);
+          } catch {}
+        }
+        return { success: true };
+      },
+    },
     scanEvent: {
       count: async () => resilientStore.getMetrics().totalScans,
       findMany: async (args?: any) => resilientStore.getRecentScans(args?.take || 10),

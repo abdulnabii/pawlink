@@ -21,6 +21,7 @@ export class ResilientDataStore {
   private subscriptions: any[] = [];
   private paymentRequests: any[] = [];
   private auditLogs: any[] = [];
+  private medicalRecords: any[] = [];
 
   private lastCloudSync = 0;
   private isSyncing = false;
@@ -337,6 +338,7 @@ export class ResilientDataStore {
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
         cache: "no-store",
+        signal: AbortSignal.timeout(2500),
       });
 
       if (res.ok) {
@@ -356,6 +358,7 @@ export class ResilientDataStore {
           if (Array.isArray(state.conversations)) this.conversations = this.mergeArrayById(this.conversations, state.conversations);
           if (Array.isArray(state.subscriptions)) this.subscriptions = this.mergeArrayById(this.subscriptions, state.subscriptions);
           if (Array.isArray(state.paymentRequests)) this.paymentRequests = this.mergeArrayById(this.paymentRequests, state.paymentRequests);
+          if (Array.isArray(state.medicalRecords)) this.medicalRecords = this.mergeArrayById(this.medicalRecords, state.medicalRecords);
         }
       }
     } catch {}
@@ -375,6 +378,7 @@ export class ResilientDataStore {
         conversations: this.conversations,
         subscriptions: this.subscriptions,
         paymentRequests: this.paymentRequests,
+        medicalRecords: this.medicalRecords,
         updatedAt: new Date().toISOString(),
       };
 
@@ -394,6 +398,7 @@ export class ResilientDataStore {
           Prefer: "resolution=merge-duplicates",
         },
         body,
+        signal: AbortSignal.timeout(2500),
       });
     } catch {}
   }
@@ -510,6 +515,7 @@ export class ResilientDataStore {
 
     const recoveryEvents = this.recoveryEvents.filter((e) => e.petId === pet.id);
     const conversations = this.conversations.filter((cv) => cv.petId === pet.id);
+    const medicalRecords = this.medicalRecords.filter((m) => m.petId === pet.id);
 
     return {
       ...pet,
@@ -517,7 +523,7 @@ export class ResilientDataStore {
       recoveryCases,
       recoveryEvents,
       conversations,
-      medicalRecords: pet.medicalRecords || [],
+      medicalRecords: medicalRecords.length > 0 ? medicalRecords : (pet.medicalRecords || []),
       photos: pet.photos || [],
     };
   }
@@ -1080,6 +1086,33 @@ export class ResilientDataStore {
         owner: owner ? { id: owner.id, name: owner.name, email: owner.email } : null,
       };
     });
+  }
+
+  async createMedicalRecord(data: any) {
+    await this.syncFromCloud();
+    const record = {
+      id: `med_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      petId: data.petId,
+      recordType: data.recordType,
+      title: data.title,
+      description: data.description || null,
+      dateAdministered: data.dateAdministered ? new Date(data.dateAdministered) : null,
+      nextDueDate: data.nextDueDate ? new Date(data.nextDueDate) : null,
+      veterinarian: data.veterinarian || null,
+      documentUrl: data.documentUrl || null,
+      isPublicAlert: Boolean(data.isPublicAlert),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.medicalRecords.push(record);
+    await this.syncToCloud();
+    return record;
+  }
+
+  async findMedicalRecords(petId?: string) {
+    await this.syncFromCloud();
+    if (petId) return this.medicalRecords.filter((m) => m.petId === petId);
+    return [...this.medicalRecords];
   }
 
   getRecentScans(take = 10) {

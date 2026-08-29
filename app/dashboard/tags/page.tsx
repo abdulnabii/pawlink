@@ -197,13 +197,21 @@ export default function TagsManagerPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Collar Tags &amp; Badges</h1>
-            <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
-              isTagLimitReached
-                ? "bg-amber-50 text-amber-800 border-amber-300"
-                : "bg-slate-100 text-slate-700 border-slate-200"
-            }`}>
-              {safeTags.length} / {maxAllowedTags === 999 ? "∞" : maxAllowedTags} Tags ({planId === "PRO" ? "Pro" : planId === "PLUS" ? "Plus" : "Basic ID"})
-            </span>
+            {loading || !subscription ? (
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border bg-slate-100 text-slate-400 border-slate-200 animate-pulse">
+                Loading Plan...
+              </span>
+            ) : (
+              <span
+                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                  isTagLimitReached
+                    ? "bg-amber-50 text-amber-800 border-amber-300"
+                    : "bg-slate-100 text-slate-700 border-slate-200"
+                }`}
+              >
+                {safeTags.length} / {maxAllowedTags === 999 ? "∞" : maxAllowedTags} Tags ({planId === "PRO" ? "Pro" : planId === "PLUS" ? "Plus" : "Basic ID"})
+              </span>
+            )}
           </div>
           <p className="text-sm text-slate-500 mt-0.5">
             Manage QR collar tags, download printable badges, and test scan notifications.

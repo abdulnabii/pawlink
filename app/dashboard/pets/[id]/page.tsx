@@ -19,6 +19,7 @@ import {
   Printer,
   Sparkles,
   Lock,
+  Loader2,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { LostModeModal } from "@/components/recovery/LostModeModal";
@@ -102,28 +103,37 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     }
   };
 
+  const [savingMedical, setSavingMedical] = useState(false);
+
   const handleAddMedical = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingMedical(true);
     try {
       const res = await fetch(`/api/pets/${petId}/medical`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recordType: medicalType,
-          title: medicalTitle,
-          description: medicalDescription || null,
+          title: medicalTitle.trim(),
+          description: medicalDescription?.trim() || null,
           isPublicAlert,
         }),
       });
+
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setShowAddMedical(false);
         setMedicalTitle("");
         setMedicalDescription("");
         setIsPublicAlert(false);
         fetchPet();
+      } else {
+        alert(data.error || "Failed to save medical record");
       }
     } catch {
-      alert("Failed to add medical record");
+      alert("Network error: Failed to save medical record");
+    } finally {
+      setSavingMedical(false);
     }
   };
 
@@ -410,8 +420,13 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
                   <button type="button" onClick={() => setShowAddMedical(false)} className="px-3 py-1.5 text-xs text-slate-600 font-semibold">
                     Cancel
                   </button>
-                  <button type="submit" className="px-4 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-sm">
-                    Save Record
+                  <button
+                    type="submit"
+                    disabled={savingMedical}
+                    className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5"
+                  >
+                    {savingMedical && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{savingMedical ? "Saving..." : "Save Record"}</span>
                   </button>
                 </div>
               </form>

@@ -180,15 +180,25 @@ export function DashboardNav() {
           className="flex items-center justify-between p-2 rounded-lg bg-slate-800 hover:bg-slate-700/80 transition-colors text-[11px]"
         >
           <span className="text-slate-400">Plan:</span>
-          <span className={`font-black uppercase px-2 py-0.5 rounded text-[10px] ${
-            subscription?.plan === "PRO"
-              ? "bg-purple-900/60 text-purple-300 border border-purple-700"
-              : subscription?.plan === "PLUS"
-              ? "bg-teal-900/60 text-teal-300 border border-teal-700"
-              : "bg-slate-700 text-slate-300"
-          }`}>
-            {subscription?.plan === "PRO" ? "👑 Pro" : subscription?.plan === "PLUS" ? "⚡ Plus" : "🛡️ Basic ID"}
-          </span>
+          {loading || !subscription ? (
+            <span className="text-[10px] text-slate-500 font-bold animate-pulse">...</span>
+          ) : (
+            <span
+              className={`font-black uppercase px-2 py-0.5 rounded text-[10px] ${
+                subscription?.plan === "PRO"
+                  ? "bg-purple-900/60 text-purple-300 border border-purple-700"
+                  : subscription?.plan === "PLUS"
+                  ? "bg-teal-900/60 text-teal-300 border border-teal-700"
+                  : "bg-slate-700 text-slate-300"
+              }`}
+            >
+              {subscription?.plan === "PRO"
+                ? "👑 Pro"
+                : subscription?.plan === "PLUS"
+                ? "⚡ Plus"
+                : "🛡️ Basic ID"}
+            </span>
+          )}
         </Link>
       </div>
     </aside>

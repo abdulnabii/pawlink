@@ -69,9 +69,16 @@ export function toPublicPetResponse(
     isLost,
     recoveryCase: activeRecoveryCase
       ? {
-          startedAt: activeRecoveryCase.startedAt.toISOString(),
+          startedAt: activeRecoveryCase.startedAt
+            ? typeof activeRecoveryCase.startedAt === "string"
+              ? activeRecoveryCase.startedAt
+              : new Date(activeRecoveryCase.startedAt).toISOString()
+            : new Date().toISOString(),
           lastSeenLocation: activeRecoveryCase.lastSeenLocation,
-          rewardAmount: activeRecoveryCase.rewardAmount ? Number(activeRecoveryCase.rewardAmount) : null,
+          rewardAmount:
+            activeRecoveryCase.rewardAmount != null
+              ? Number(activeRecoveryCase.rewardAmount)
+              : null,
           description: activeRecoveryCase.description,
         }
       : null,
