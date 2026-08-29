@@ -54,6 +54,7 @@ export default function DashboardOverviewPage() {
   const safePets = Array.isArray(pets) ? pets : [];
   const totalScans = safeTags.reduce((acc, tag) => acc + (tag?.scanCount || 0), 0);
   const lostPetsCount = safePets.filter((p) => p?.status === "LOST").length;
+  const activeTagsCount = safeTags.filter((t) => t?.status === "ACTIVE").length;
 
   if (!mounted) return null;
 
@@ -96,7 +97,7 @@ export default function DashboardOverviewPage() {
           </div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pets</p>
-            <p className="text-2xl font-black text-slate-900 mt-0.5">{pets.length}</p>
+            <p className="text-2xl font-black text-slate-900 mt-0.5">{safePets.length}</p>
           </div>
         </div>
 
@@ -107,9 +108,7 @@ export default function DashboardOverviewPage() {
           </div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Tags</p>
-            <p className="text-2xl font-black text-slate-900 mt-0.5">
-              {tags.filter((t) => t.status === "ACTIVE").length}
-            </p>
+            <p className="text-2xl font-black text-slate-900 mt-0.5">{activeTagsCount}</p>
           </div>
         </div>
 
@@ -138,13 +137,13 @@ export default function DashboardOverviewPage() {
             <p className={`text-sm font-black mt-0.5 ${
               lostPetsCount > 0
                 ? "text-red-600"
-                : pets.length === 0
+                : safePets.length === 0
                 ? "text-slate-600"
                 : "text-emerald-700"
             }`}>
               {lostPetsCount > 0
                 ? `${lostPetsCount} Pet Missing!`
-                : pets.length === 0
+                : safePets.length === 0
                 ? "No Pets Added"
                 : "All Pets Safe"}
             </p>
@@ -157,11 +156,11 @@ export default function DashboardOverviewPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-slate-900">Your Pet Profiles</h2>
           <Link href="/dashboard/pets" className="text-xs font-bold text-teal-600 hover:underline">
-            View All ({pets.length})
+            View All ({safePets.length})
           </Link>
         </div>
 
-        {pets.length === 0 ? (
+        {safePets.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center">
             <Dog className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-800">No pet profiles yet</h3>
@@ -178,13 +177,13 @@ export default function DashboardOverviewPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pets.map((pet) => {
-              const isLost = pet.status === "LOST" || pet.recoveryCases?.length > 0;
-              const activeTag = pet.tagAssignments?.[0]?.tag;
+            {safePets.map((pet) => {
+              const isLost = pet?.status === "LOST" || (Array.isArray(pet?.recoveryCases) && pet.recoveryCases.length > 0);
+              const activeTag = pet?.tagAssignments?.[0]?.tag;
 
               return (
                 <div
-                  key={pet.id}
+                  key={pet?.id || Math.random()}
                   className={`bg-white rounded-3xl p-6 border shadow-sm transition-all hover:shadow-md ${
                     isLost ? "border-red-300 ring-2 ring-red-500/20" : "border-slate-200"
                   }`}
@@ -192,17 +191,17 @@ export default function DashboardOverviewPage() {
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 p-0.5 border border-slate-200 shrink-0">
-                        {pet.photoUrl ? (
-                          <img src={pet.photoUrl} alt={pet.name} className="w-full h-full object-cover rounded-xl" />
+                        {pet?.photoUrl ? (
+                          <img src={pet.photoUrl} alt={pet.name || "Pet"} className="w-full h-full object-cover rounded-xl" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-2xl">
-                            {pet.species.toLowerCase() === "cat" ? "🐈" : "🐕"}
+                            {pet?.species?.toLowerCase() === "cat" ? "🐈" : "🐕"}
                           </div>
                         )}
                       </div>
                       <div>
-                        <h3 className="font-extrabold text-base text-slate-900">{pet.name}</h3>
-                        <p className="text-xs text-slate-500">{pet.breed || pet.species}</p>
+                        <h3 className="font-extrabold text-base text-slate-900">{pet?.name || "Pet"}</h3>
+                        <p className="text-xs text-slate-500">{pet?.breed || pet?.species || "Animal"}</p>
                       </div>
                     </div>
 
@@ -234,7 +233,7 @@ export default function DashboardOverviewPage() {
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <Link
-                      href={`/dashboard/pets/${pet.id}`}
+                      href={`/dashboard/pets/${pet?.id}`}
                       className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl text-center flex items-center justify-center gap-1.5 transition-colors"
                     >
                       <span>Open Pet Hub</span>

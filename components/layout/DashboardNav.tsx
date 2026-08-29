@@ -31,7 +31,8 @@ interface UserProfile {
 }
 
 export function DashboardNav() {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = typeof rawPathname === "string" ? rawPathname : "";
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +59,9 @@ export function DashboardNav() {
   }, []);
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
     router.push("/");
     router.refresh();
   };
@@ -99,7 +102,11 @@ export function DashboardNav() {
         <nav className="p-4 space-y-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            const active = Boolean(
+              pathname &&
+                (pathname === item.href ||
+                  (item.href !== "/dashboard" && pathname.startsWith(item.href)))
+            );
             return (
               <Link
                 key={item.name}
