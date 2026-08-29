@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     const activationPin = generateActivationPin();
     const qrUrl = getTagRecoveryUrl(tagCode);
 
-    const tag = await db.$transaction(async (tx) => {
+    const tag = await db.$transaction(async (tx: any) => {
       const createdTag = await tx.tag.create({
         data: {
           tagCode,

@@ -32,7 +32,7 @@ export async function POST(
 
     if (validated.activate) {
       // 1. ACTIVATE LOST MODE
-      const result = await db.$transaction(async (tx) => {
+      const result = await db.$transaction(async (tx: any) => {
         // Close any existing open cases to guarantee single OPEN case constraint
         await tx.recoveryCase.updateMany({
           where: { petId: pet.id, status: "OPEN" },
@@ -101,7 +101,7 @@ export async function POST(
       return NextResponse.json({ success: true, ...result });
     } else {
       // 2. DEACTIVATE LOST MODE (PET RECOVERED)
-      const result = await db.$transaction(async (tx) => {
+      const result = await db.$transaction(async (tx: any) => {
         // Resolve active OPEN recovery case
         const openCase = await tx.recoveryCase.findFirst({
           where: { petId: pet.id, status: "OPEN" },

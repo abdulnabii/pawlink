@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     // Default 30-day expiration for location data
     const locationExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const locationEvent = await db.$transaction(async (tx) => {
+    const locationEvent = await db.$transaction(async (tx: any) => {
       // 1. Create LocationEvent
       const loc = await tx.locationEvent.create({
         data: {

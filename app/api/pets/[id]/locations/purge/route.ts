@@ -17,7 +17,7 @@ export async function POST(
       return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     }
 
-    const caseIds = pet.recoveryCases.map((rc) => rc.id);
+    const caseIds = pet.recoveryCases?.map((rc: any) => rc.id) || [];
 
     // Purge all location events for this pet's recovery cases
     const deleted = await db.locationEvent.deleteMany({

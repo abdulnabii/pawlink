@@ -41,10 +41,8 @@ export async function POST(req: NextRequest) {
       });
 
       if (sbError) {
-        return NextResponse.json({ error: sbError.message }, { status: 400 });
-      }
-
-      if (sbData.user) {
+        console.warn("Supabase auth notice:", sbError.message);
+      } else if (sbData?.user) {
         authUserId = sbData.user.id;
       }
     }

@@ -96,7 +96,7 @@ export async function GET(
     // 3. Atomically Record Scan & Recovery Event
     const throttled = isNotificationThrottled(tag.id, ipHash, 5 * 60 * 1000); // 5 min notification throttle
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       // Create ScanEvent if not already logged within the 30s idempotency window
       const existingScan = await tx.scanEvent.findUnique({
         where: { idempotencyKey },

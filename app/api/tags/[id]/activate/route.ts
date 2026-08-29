@@ -39,7 +39,7 @@ export async function POST(
       return NextResponse.json({ error: "Invalid tag activation PIN." }, { status: 400 });
     }
 
-    const assignment = await db.$transaction(async (tx) => {
+    const assignment = await db.$transaction(async (tx: any) => {
       // 1. Close any prior active assignment for this tag
       await tx.tagAssignment.updateMany({
         where: { tagId: tag.id, unassignedAt: null },

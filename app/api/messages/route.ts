@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       senderType = "FINDER";
     }
 
-    const message = await db.$transaction(async (tx) => {
+    const message = await db.$transaction(async (tx: any) => {
       const msg = await tx.message.create({
         data: {
           conversationId: conversation.id,
