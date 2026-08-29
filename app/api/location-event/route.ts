@@ -81,7 +81,9 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Enqueue Notification to Owner
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
     const dashboardUrl = `${appUrl}/dashboard/pets/${pet.id}`;
 
     await enqueueNotificationJob(

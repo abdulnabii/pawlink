@@ -9,10 +9,15 @@ export interface TagBadgeData {
 }
 
 /**
- * Returns the public recovery URL for a tag code
+ * Returns the public recovery URL for a tag code dynamically based on current origin
  */
 export function getTagRecoveryUrl(tagCode: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/p/${tagCode}`;
+  }
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
   return `${baseUrl}/p/${tagCode}`;
 }
 

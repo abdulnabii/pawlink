@@ -93,7 +93,9 @@ export async function POST(req: NextRequest) {
 
     // Notify owner if message was from finder
     if (senderType === "FINDER") {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
       const dashboardUrl = `${appUrl}/dashboard/messages?conv=${conversation.id}`;
 
       await enqueueNotificationJob(
