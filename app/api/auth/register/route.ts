@@ -16,13 +16,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validated = RegisterInputSchema.parse(body);
 
-    if (!process.env.DATABASE_URL) {
-      return NextResponse.json(
-        { error: "DATABASE_URL is missing in Vercel environment variables. Please add DATABASE_URL in Vercel Settings -> Environment Variables and redeploy." },
-        { status: 500 }
-      );
-    }
-
     const existing = await db.user.findUnique({
       where: { email: validated.email.toLowerCase() },
     });
