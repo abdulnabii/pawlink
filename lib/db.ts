@@ -27,6 +27,7 @@ function createSelfHealingDb() {
       return await Promise.all(callbackOrArray);
     },
     user: {
+      count: async () => resilientStore.getMetrics().totalUsers,
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
@@ -61,6 +62,10 @@ function createSelfHealingDb() {
       },
     },
     pet: {
+      count: async (args?: any) => {
+        if (args?.where?.status === "LOST") return resilientStore.getMetrics().lostPets;
+        return resilientStore.getMetrics().totalPets;
+      },
       findMany: async (args?: any) => {
         if (rawPrisma) {
           try {
@@ -103,6 +108,10 @@ function createSelfHealingDb() {
       },
     },
     tag: {
+      count: async (args?: any) => {
+        if (args?.where?.status === "ACTIVE") return resilientStore.getMetrics().activeTags;
+        return resilientStore.getMetrics().activeTags;
+      },
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
@@ -156,6 +165,7 @@ function createSelfHealingDb() {
       },
     },
     recoveryCase: {
+      count: async (args?: any) => resilientStore.getMetrics().recoveredCases,
       findFirst: async (args: any) => {
         return null;
       },
@@ -188,6 +198,8 @@ function createSelfHealingDb() {
       },
     },
     scanEvent: {
+      count: async () => resilientStore.getMetrics().totalScans,
+      findMany: async (args?: any) => resilientStore.getRecentScans(args?.take || 10),
       findUnique: async (args: any) => {
         return null;
       },
@@ -264,11 +276,13 @@ function createSelfHealingDb() {
       },
     },
     notificationJob: {
+      findMany: async (args?: any) => resilientStore.getRecentJobs(args?.take || 10),
       create: async (args: any) => {
         return resilientStore.createNotificationJob(args);
       },
     },
     notification: {
+      groupBy: async () => [],
       create: async (args: any) => {
         return resilientStore.createNotification(args);
       },

@@ -637,6 +637,23 @@ export class ResilientDataStore {
     return log;
   }
 
+  getRecentScans(take = 10) {
+    return this.scanEvents
+      .slice(-take)
+      .reverse()
+      .map((s) => {
+        const tag = this.tags.find((t) => t.id === s.tagId);
+        return {
+          ...s,
+          tag: tag ? this.hydrateTag(tag) : null,
+        };
+      });
+  }
+
+  getRecentJobs(take = 10) {
+    return this.notificationJobs.slice(-take).reverse();
+  }
+
   getMetrics() {
     return {
       totalUsers: this.users.length,

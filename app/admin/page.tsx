@@ -17,11 +17,23 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
+function formatTime(dateVal: any) {
+  if (!dateVal) return "";
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
 export default function AdminPortalPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const fetchAdminData = () => {
     fetch("/api/admin/metrics")
@@ -41,6 +53,7 @@ export default function AdminPortalPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchAdminData();
   }, []);
 
@@ -68,19 +81,44 @@ export default function AdminPortalPage() {
     }
   };
 
-  if (loading) {
-    return <div className="p-12 text-center text-slate-400 text-sm">Loading admin console...</div>;
+  if (!mounted || loading) {
+    return (
+      <div className="p-12 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
+        <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
+        <span>Loading admin console...</span>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="p-12 text-center text-red-600">
-        <ShieldAlert className="w-12 h-12 mx-auto mb-2 text-red-500" />
-        <h3 className="text-lg font-bold">Access Forbidden</h3>
-        <p className="text-xs text-slate-500 mt-1">{error}</p>
-        <Link href="/dashboard" className="text-xs font-semibold text-teal-600 hover:underline mt-4 inline-block">
-          Return to Owner Dashboard
-        </Link>
+      <div className="max-w-md mx-auto p-8 text-center bg-white rounded-3xl border border-slate-200 shadow-sm mt-8">
+        <ShieldAlert className="w-12 h-12 mx-auto mb-3 text-amber-500" />
+        <h3 className="text-lg font-black text-slate-900">Admin Authentication Required</h3>
+        <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+          {error.includes("Forbidden") || error.includes("Admin")
+            ? "Your current session is logged in as an Owner. To access the Platform Fraud & Telemetry Console, please log in with an Administrator account."
+            : error}
+        </p>
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl mt-4 text-left text-xs space-y-1">
+          <p className="font-bold text-slate-800">Admin Demo Credentials:</p>
+          <p className="text-slate-600">Email: <code className="font-mono bg-slate-200 px-1 py-0.5 rounded text-[11px]">admin@pawlink.pet</code></p>
+          <p className="text-slate-600">Password: <code className="font-mono bg-slate-200 px-1 py-0.5 rounded text-[11px]">password123</code></p>
+        </div>
+        <div className="flex items-center justify-center gap-3 mt-6">
+          <Link
+            href="/auth/login"
+            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors"
+          >
+            Switch to Admin Account
+          </Link>
+          <Link
+            href="/dashboard"
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors"
+          >
+            Owner Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
@@ -118,23 +156,23 @@ export default function AdminPortalPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase">Users</p>
-          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalUsers}</p>
+          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalUsers || 0}</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase">Total Pets</p>
-          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalPets}</p>
+          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalPets || 0}</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase">Active Tags</p>
-          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.activeTags}</p>
+          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.activeTags || 0}</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase">Total Scans</p>
-          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalScans}</p>
+          <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalScans || 0}</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase">Recoveries</p>
-          <p className="text-2xl font-black text-emerald-600 mt-1">{metrics.recoveredCases}</p>
+          <p className="text-2xl font-black text-emerald-600 mt-1">{metrics.recoveredCases || 0}</p>
         </div>
       </div>
 
@@ -161,32 +199,38 @@ export default function AdminPortalPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {data?.recentScans?.map((scan: any) => {
-                const pet = scan.tag?.assignments?.[0]?.pet;
+              {(!data?.recentScans || data.recentScans.length === 0) ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-slate-400">No public scans recorded yet.</td>
+                </tr>
+              ) : (
+                data.recentScans.map((scan: any) => {
+                  const pet = scan.tag?.assignments?.[0]?.pet;
 
-                return (
-                  <tr key={scan.id} className="hover:bg-slate-50">
-                    <td className="py-3 font-mono font-bold text-slate-900">{scan.tag?.tagCode}</td>
-                    <td className="py-3 font-semibold text-slate-800">{pet?.name || "Unassigned"}</td>
-                    <td className="py-3 text-slate-500">{scan.deviceType || "Mobile"}</td>
-                    <td className="py-3 text-slate-600">{scan.approximateLocation || "Direct Scan"}</td>
-                    <td className="py-3 text-slate-400">{new Date(scan.timestamp).toLocaleTimeString()}</td>
-                    <td className="py-3 text-right">
-                      {scan.tag?.status === "ACTIVE" ? (
-                        <button
-                          onClick={() => handleRevokeTag(scan.tag.id)}
-                          disabled={revokingId === scan.tag.id}
-                          className="text-red-600 hover:text-red-800 font-bold text-[11px]"
-                        >
-                          Revoke Tag
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 font-semibold">Revoked</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                  return (
+                    <tr key={scan.id} className="hover:bg-slate-50">
+                      <td className="py-3 font-mono font-bold text-slate-900">{scan.tag?.tagCode || "Tag"}</td>
+                      <td className="py-3 font-semibold text-slate-800">{pet?.name || "Unassigned"}</td>
+                      <td className="py-3 text-slate-500">{scan.deviceType || "Mobile"}</td>
+                      <td className="py-3 text-slate-600">{scan.approximateLocation || "Direct Scan"}</td>
+                      <td className="py-3 text-slate-400">{formatTime(scan.timestamp)}</td>
+                      <td className="py-3 text-right">
+                        {scan.tag?.status === "ACTIVE" ? (
+                          <button
+                            onClick={() => handleRevokeTag(scan.tag.id)}
+                            disabled={revokingId === scan.tag.id}
+                            className="text-red-600 hover:text-red-800 font-bold text-[11px]"
+                          >
+                            Revoke Tag
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 font-semibold">Revoked</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
