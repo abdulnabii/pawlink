@@ -43,13 +43,23 @@ function formatTime(dateVal: any) {
   }
 }
 
+const getSafeNumber = (val: any): number => {
+  if (typeof val === "number" && !isNaN(val)) return val;
+  if (val && typeof val === "object") {
+    if (typeof val.increment === "number") return val.increment;
+    if (typeof val.toNumber === "function") return val.toNumber();
+  }
+  const parsed = Number(val);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
 export default function AdminPortalPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "users" | "pets" | "tags" | "scans" | "plans" | "payments"
+    "payments" | "users" | "pets" | "tags" | "scans" | "plans"
   >("payments");
   const [searchQuery, setSearchQuery] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -65,10 +75,11 @@ export default function AdminPortalPage() {
       fetch("/api/admin/subscriptions").then((res) => res.json()).catch(() => ({ requests: [] })),
     ])
       .then(([metricsData, subData]) => {
-        if (metricsData.error) {
+        if (metricsData?.error) {
           setError(metricsData.error);
-        } else {
+        } else if (metricsData) {
           setData(metricsData);
+          setError(null);
         }
         if (Array.isArray(subData?.requests)) {
           setPaymentRequests(subData.requests);
@@ -174,35 +185,28 @@ export default function AdminPortalPage() {
     );
   }
 
+  // NON-ADMIN OR FORBIDDEN SCREEN - NO PLAIN TEXT PASSWORDS
   if (error) {
     return (
-      <div className="max-w-md mx-auto p-8 text-center bg-white rounded-3xl border border-slate-200 shadow-sm mt-8">
-        <ShieldAlert className="w-12 h-12 mx-auto mb-3 text-amber-500" />
-        <h3 className="text-lg font-black text-slate-900">Admin Authentication Required</h3>
-        <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-          {error.includes("Forbidden") || error.includes("Admin")
-            ? "Your current session is logged in as an Owner. To access the Platform Fraud & Telemetry Console, please log in with your Administrator account."
-            : error}
-        </p>
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl mt-4 text-left text-xs space-y-1">
-          <p className="font-bold text-slate-800">Admin Account:</p>
-          <p className="text-slate-600">
-            Email: <code className="font-mono bg-slate-200 px-1 py-0.5 rounded text-[11px]">abdulnabi.khaskheli@gmail.com</code>
-          </p>
-          <p className="text-slate-600">
-            Password: <code className="font-mono bg-slate-200 px-1 py-0.5 rounded text-[11px]">abkhaskhely</code>
-          </p>
+      <div className="max-w-md mx-auto p-8 text-center bg-white rounded-3xl border border-slate-200 shadow-sm mt-12 animate-fadeIn">
+        <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-7 h-7" />
         </div>
-        <div className="flex items-center justify-center gap-3 mt-6">
+        <h3 className="text-xl font-black text-slate-900">Administrator Access Required</h3>
+        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+          The Platform Command, Billing &amp; Fraud Console is restricted to authorized Administrator accounts. Please sign in with your administrative credentials to proceed.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
           <Link
             href="/auth/login"
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors"
           >
-            Sign in as Admin
+            Sign In with Admin Account
           </Link>
           <Link
             href="/dashboard"
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
           >
             Back to Dashboard
           </Link>
@@ -211,41 +215,44 @@ export default function AdminPortalPage() {
     );
   }
 
-  const users = data?.users || [];
-  const pets = data?.pets || [];
-  const tags = data?.tags || [];
-  const scans = data?.scans || [];
+  const users = Array.isArray(data?.users) ? data.users : [];
+  const pets = Array.isArray(data?.pets) ? data.pets : [];
+  const tags = Array.isArray(data?.tags) ? data.tags : [];
+  const scans = Array.isArray(data?.scans) ? data.scans : [];
   const metrics = data?.metrics || {};
 
-  const pendingPayments = paymentRequests.filter((p) => p.status === "PENDING");
+  const safePaymentRequests = Array.isArray(paymentRequests) ? paymentRequests : [];
+  const pendingPayments = safePaymentRequests.filter((p) => p && p.status === "PENDING");
+
+  const query = (searchQuery || "").toLowerCase();
 
   const filteredUsers = users.filter(
     (u: any) =>
-      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.phone?.includes(searchQuery)
+      u?.name?.toLowerCase().includes(query) ||
+      u?.email?.toLowerCase().includes(query) ||
+      u?.phone?.includes(query)
   );
 
   const filteredPets = pets.filter(
     (p: any) =>
-      p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.breed?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.ownerName?.toLowerCase().includes(searchQuery.toLowerCase())
+      p?.name?.toLowerCase().includes(query) ||
+      p?.breed?.toLowerCase().includes(query) ||
+      p?.ownerName?.toLowerCase().includes(query)
   );
 
   const filteredTags = tags.filter(
     (t: any) =>
-      t.tagCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.pet?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.label?.toLowerCase().includes(searchQuery.toLowerCase())
+      t?.tagCode?.toLowerCase().includes(query) ||
+      t?.pet?.name?.toLowerCase().includes(query) ||
+      t?.label?.toLowerCase().includes(query)
   );
 
-  const filteredPayments = paymentRequests.filter(
+  const filteredPayments = safePaymentRequests.filter(
     (p: any) =>
-      p.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.userEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.transactionId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.requestedPlan?.toLowerCase().includes(searchQuery.toLowerCase())
+      p?.userName?.toLowerCase().includes(query) ||
+      p?.userEmail?.toLowerCase().includes(query) ||
+      p?.transactionId?.toLowerCase().includes(query) ||
+      p?.requestedPlan?.toLowerCase().includes(query)
   );
 
   return (
@@ -257,15 +264,12 @@ export default function AdminPortalPage() {
             <span className="bg-red-500/20 text-red-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded border border-red-500/40">
               Admin Command Portal
             </span>
-            <span className="text-xs text-slate-400">
-              Authenticated as: <strong className="text-white">abdulnabi.khaskheli@gmail.com</strong>
-            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Platform Fraud, Billing &amp; Telemetry Hub
+            Platform Billing, Fraud &amp; Telemetry Hub
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Review user bank payments, approve subscription upgrades, and monitor real-time pet scans.
+            Review user Meezan Bank payments, approve plan upgrades, and monitor real-time collar scans.
           </p>
         </div>
 
@@ -310,7 +314,7 @@ export default function AdminPortalPage() {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Users</p>
             <Users className="w-4 h-4 text-teal-600" />
           </div>
-          <p className="text-3xl font-black text-slate-900 mt-2">{metrics.totalUsers || users.length}</p>
+          <p className="text-3xl font-black text-slate-900 mt-2">{getSafeNumber(metrics.totalUsers || users.length)}</p>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
@@ -318,7 +322,7 @@ export default function AdminPortalPage() {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Registered Pets</p>
             <Dog className="w-4 h-4 text-indigo-600" />
           </div>
-          <p className="text-3xl font-black text-slate-900 mt-2">{metrics.totalPets || pets.length}</p>
+          <p className="text-3xl font-black text-slate-900 mt-2">{getSafeNumber(metrics.totalPets || pets.length)}</p>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
@@ -326,15 +330,15 @@ export default function AdminPortalPage() {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active QR Tags</p>
             <QrCode className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-3xl font-black text-slate-900 mt-2">{metrics.activeTags || tags.length}</p>
+          <p className="text-3xl font-black text-slate-900 mt-2">{getSafeNumber(metrics.activeTags || tags.length)}</p>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Public Scans</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Scans</p>
             <Activity className="w-4 h-4 text-rose-500" />
           </div>
-          <p className="text-3xl font-black text-slate-900 mt-2">{metrics.totalScans || 0}</p>
+          <p className="text-3xl font-black text-slate-900 mt-2">{getSafeNumber(metrics.totalScans || 0)}</p>
         </div>
       </div>
 
@@ -351,7 +355,7 @@ export default function AdminPortalPage() {
             }`}
           >
             <CreditCard className="w-3.5 h-3.5" />
-            <span>Payment Approvals ({paymentRequests.length})</span>
+            <span>Payment Approvals ({safePaymentRequests.length})</span>
             {pendingPayments.length > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
                 {pendingPayments.length}
@@ -448,7 +452,7 @@ export default function AdminPortalPage() {
               </div>
               <div className="space-y-1 text-xs">
                 <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
-                  Payment Collection Target
+                  Payment Collection Account
                 </span>
                 <h4 className="text-base font-extrabold text-white">
                   {BANK_PAYMENT_CONFIG.bankName} - {BANK_PAYMENT_CONFIG.accountTitle}
@@ -457,7 +461,7 @@ export default function AdminPortalPage() {
                   Raast / Reference ID: <code className="font-mono bg-slate-800 px-1.5 py-0.5 rounded font-bold text-teal-300">{BANK_PAYMENT_CONFIG.raastOrAccountRef}</code>
                 </p>
                 <p className="text-slate-400 text-[11px]">
-                  Receipts also forwarded to: <strong className="text-slate-200">{BANK_PAYMENT_CONFIG.adminEmail}</strong>
+                  Receipts forwarded to: <strong className="text-slate-200">{BANK_PAYMENT_CONFIG.adminEmail}</strong>
                 </p>
               </div>
             </div>
@@ -525,7 +529,7 @@ export default function AdminPortalPage() {
                             </span>
                           </td>
                           <td className="py-3.5 font-bold text-slate-900">
-                            Rs {req.amountPKR?.toLocaleString()}
+                            Rs {getSafeNumber(req.amountPKR).toLocaleString()}
                           </td>
                           <td className="py-3.5">
                             <code className="font-mono bg-slate-100 px-2 py-1 rounded border border-slate-200 text-slate-900 font-bold select-all">
@@ -639,7 +643,7 @@ export default function AdminPortalPage() {
                         {u.role}
                       </span>
                     </td>
-                    <td className="py-3 font-bold text-slate-900">{u.petCount || 0}</td>
+                    <td className="py-3 font-bold text-slate-900">{getSafeNumber(u.petCount || 0)}</td>
                     <td className="py-3 text-slate-400">{formatTime(u.createdAt)}</td>
                   </tr>
                 ))}
@@ -676,16 +680,16 @@ export default function AdminPortalPage() {
                   <tr key={p.id} className="hover:bg-slate-50/50">
                     <td className="py-3 font-bold text-slate-900 flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center font-bold text-xs shrink-0">
-                        {p.name[0]}
+                        {p.name ? p.name[0] : "🐾"}
                       </div>
-                      <span>{p.name}</span>
+                      <span>{p.name || "Pet"}</span>
                     </td>
                     <td className="py-3 text-slate-600">
                       {p.species} • {p.breed || "Standard"}
                     </td>
                     <td className="py-3">
-                      <p className="font-medium text-slate-900">{p.ownerName}</p>
-                      <p className="text-[10px] text-slate-400">{p.ownerEmail}</p>
+                      <p className="font-medium text-slate-900">{p.owner?.name || "Owner"}</p>
+                      <p className="text-[10px] text-slate-400">{p.owner?.email || "—"}</p>
                     </td>
                     <td className="py-3">
                       {p.tagCode ? (
@@ -750,10 +754,10 @@ export default function AdminPortalPage() {
                       {t.pet?.name || <span className="text-slate-400 italic">Unassigned</span>}
                     </td>
                     <td className="py-3 text-slate-600">
-                      {t.pet?.user?.email || "—"}
+                      {t.owner?.email || "—"}
                     </td>
                     <td className="py-3 font-bold text-slate-900">
-                      {typeof t.scanCount === "object" ? 0 : t.scanCount || 0}
+                      {getSafeNumber(t.scanCount)}
                     </td>
                     <td className="py-3">
                       <span
@@ -817,10 +821,10 @@ export default function AdminPortalPage() {
               <tbody className="divide-y divide-slate-100">
                 {scans.map((s: any) => (
                   <tr key={s.id} className="hover:bg-slate-50/50">
-                    <td className="py-3 font-mono font-bold text-teal-700">{s.tagCode}</td>
-                    <td className="py-3 font-medium text-slate-900">{s.petName}</td>
+                    <td className="py-3 font-mono font-bold text-teal-700">{s.tag?.tagCode || s.tagId}</td>
+                    <td className="py-3 font-medium text-slate-900">{s.tag?.pet?.name || "Pet"}</td>
                     <td className="py-3 text-slate-600">
-                      {s.deviceType} ({s.userAgentCategory})
+                      {s.deviceType || "Mobile"} ({s.userAgentCategory || "Unknown"})
                     </td>
                     <td className="py-3 font-mono text-[11px] text-slate-400">
                       {s.ipHash ? s.ipHash.substring(0, 10) + "..." : "127.0.0.1"}
