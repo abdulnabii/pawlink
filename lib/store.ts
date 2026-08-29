@@ -473,16 +473,89 @@ export class ResilientDataStore {
     return loc;
   }
 
+  // --- CONVERSATION & CHAT METHODS ---
+  async findConversations(args?: any) {
+    let list = [...this.conversations];
+    if (args?.where?.pet?.userId) {
+      const ownerPets = this.pets.filter((p) => p.userId === args.where.pet.userId).map((p) => p.id);
+      list = list.filter((c) => ownerPets.includes(c.petId));
+    }
+    if (args?.where?.petId) {
+      list = list.filter((c) => c.petId === args.where.petId);
+    }
+    return list.map((c) => this.hydrateConversation(c));
+  }
+
+  async findConversationUnique(args: any) {
+    if (args?.where?.id) {
+      const c = this.conversations.find((conv) => conv.id === args.where.id);
+      return c ? this.hydrateConversation(c) : null;
+    }
+    if (args?.where?.finderToken) {
+      const c = this.conversations.find((conv) => conv.finderToken === args.where.finderToken);
+      return c ? this.hydrateConversation(c) : null;
+    }
+    return null;
+  }
+
+  private hydrateConversation(conv: any) {
+    const pet = this.pets.find((p) => p.id === conv.petId);
+    const msgs = this.messages
+      .filter((m) => m.conversationId === conv.id)
+      .concat(conv.messages || []);
+    // Deduplicate messages by ID
+    const uniqueMsgs = Array.from(new Map(msgs.map((m) => [m.id, m])).values()).sort(
+      (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    return {
+      ...conv,
+      pet: pet
+        ? {
+            id: pet.id,
+            name: pet.name,
+            photoUrl: pet.photoUrl,
+            species: pet.species,
+            status: pet.status,
+          }
+        : null,
+      messages: uniqueMsgs,
+    };
+  }
+
   async createConversation(args: any) {
+    const convId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const initialMsgData = args.data.messages?.create;
+    const initialMsgs = [];
+
+    if (initialMsgData) {
+      const msg = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        conversationId: convId,
+        senderType: initialMsgData.senderType || "FINDER",
+        content: initialMsgData.content,
+        createdAt: new Date(),
+      };
+      this.messages.push(msg);
+      initialMsgs.push(msg);
+    }
+
     const conv = {
-      id: `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      ...args.data,
-      messages: args.data.messages?.create || [],
+      id: convId,
+      petId: args.data.petId,
+      recoveryCaseId: args.data.recoveryCaseId || null,
+      finderToken: args.data.finderToken,
+      finderName: args.data.finderName || "Helpful Finder",
+      finderPhone: args.data.finderPhone || null,
+      status: args.data.status || "OPEN",
+      expiresAt: args.data.expiresAt || new Date(Date.now() + 7 * 86400 * 1000),
+      lastFinderActivity: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      messages: initialMsgs,
     };
     this.conversations.push(conv);
-    return conv;
+    return this.hydrateConversation(conv);
   }
 
   async createMessage(args: any) {

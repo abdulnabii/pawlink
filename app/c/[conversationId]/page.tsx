@@ -5,6 +5,17 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MessageSquare, Send, ShieldCheck, User, Dog, Loader2, ArrowLeft } from "lucide-react";
 
+function formatTime(dateVal: any) {
+  if (!dateVal) return "";
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
 export default function FinderDirectChatPage({
   params,
 }: {
@@ -20,6 +31,7 @@ export default function FinderDirectChatPage({
   const [error, setError] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const fetchChat = () => {
     if (!finderToken) {
@@ -45,6 +57,7 @@ export default function FinderDirectChatPage({
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchChat();
   }, [finderToken]);
 
@@ -75,7 +88,7 @@ export default function FinderDirectChatPage({
     }
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 text-white">
         <Loader2 className="w-8 h-8 text-teal-400 animate-spin mb-2" />
@@ -106,7 +119,7 @@ export default function FinderDirectChatPage({
           </div>
           <div>
             <h3 className="font-extrabold text-sm text-slate-900">
-              Chatting with {conversation.pet?.name}&apos;s Family
+              Chatting with {conversation.pet?.name || "Pet"}&apos;s Family
             </h3>
             <p className="text-[11px] text-slate-500 font-semibold">Anonymous Recovery Channel</p>
           </div>
@@ -136,7 +149,7 @@ export default function FinderDirectChatPage({
                 <p>{msg.content}</p>
               </div>
               <span className="text-[10px] text-slate-400 mt-1 px-1">
-                {isFinder ? "You (Finder)" : `${conversation.pet?.name}'s Owner`} • {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {isFinder ? "You (Finder)" : `${conversation.pet?.name || "Owner"}'s Family`} • {formatTime(msg.createdAt)}
               </span>
             </div>
           );

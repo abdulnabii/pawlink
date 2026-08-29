@@ -3,6 +3,17 @@
 import { useEffect, useState } from "react";
 import { MessageSquare, Send, User, Dog, Clock, ShieldCheck, Loader2 } from "lucide-react";
 
+function formatTime(dateVal: any) {
+  if (!dateVal) return "";
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
 export default function MessagesInboxPage() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -10,12 +21,13 @@ export default function MessagesInboxPage() {
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const fetchConversations = () => {
     fetch("/api/conversations")
       .then((res) => res.json())
       .then((data) => {
-        if (data.conversations) {
+        if (data.conversations && Array.isArray(data.conversations)) {
           setConversations(data.conversations);
           if (!activeConvId && data.conversations.length > 0) {
             setActiveConvId(data.conversations[0].id);
@@ -27,13 +39,13 @@ export default function MessagesInboxPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchConversations();
   }, []);
 
   useEffect(() => {
-    if (!activeConvId) return;
+    if (!activeConvId || !conversations.length) return;
 
-    // Fetch conversation messages
     const conv = conversations.find((c) => c.id === activeConvId);
     if (conv) {
       setActiveConv(conv);
@@ -66,6 +78,8 @@ export default function MessagesInboxPage() {
     }
   };
 
+  if (!mounted) return null;
+
   return (
     <div className="space-y-6 animate-fadeIn">
       <div>
@@ -92,7 +106,7 @@ export default function MessagesInboxPage() {
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Conversations</h4>
             {conversations.map((c) => {
               const active = c.id === activeConvId;
-              const lastMsg = c.messages?.[0];
+              const lastMsg = c.messages?.[c.messages.length - 1];
 
               return (
                 <button
@@ -105,10 +119,10 @@ export default function MessagesInboxPage() {
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="font-bold text-xs text-slate-900">{c.finderName || "Helpful Finder"}</span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {new Date(c.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {formatTime(c.updatedAt)}
                     </span>
                   </div>
-                  <p className="text-[11px] text-teal-700 font-semibold mb-1">Pet: {c.pet?.name}</p>
+                  <p className="text-[11px] text-teal-700 font-semibold mb-1">Pet: {c.pet?.name || "Protected Pet"}</p>
                   {lastMsg && (
                     <p className="text-xs text-slate-500 truncate">{lastMsg.content}</p>
                   )}
@@ -129,7 +143,7 @@ export default function MessagesInboxPage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-sm text-slate-900">{activeConv.finderName || "Finder"}</h3>
-                      <p className="text-xs text-slate-500">Regarding {activeConv.pet?.name}</p>
+                      <p className="text-xs text-slate-500">Regarding {activeConv.pet?.name || "Protected Pet"}</p>
                     </div>
                   </div>
 
@@ -139,7 +153,7 @@ export default function MessagesInboxPage() {
                 </div>
 
                 {/* Messages Body */}
-                <div className="flex-1 py-6 space-y-4 overflow-y-auto">
+                <div className="flex-1 py-6 space-y-4 overflow-y-auto max-h-[380px]">
                   {activeConv.messages?.map((msg: any) => {
                     const isOwner = msg.senderType === "OWNER";
 
@@ -158,7 +172,7 @@ export default function MessagesInboxPage() {
                           <p>{msg.content}</p>
                         </div>
                         <span className="text-[10px] text-slate-400 mt-1 px-1">
-                          {isOwner ? "You" : activeConv.finderName || "Finder"} • {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {isOwner ? "You" : activeConv.finderName || "Finder"} • {formatTime(msg.createdAt)}
                         </span>
                       </div>
                     );

@@ -210,12 +210,35 @@ function createSelfHealingDb() {
     },
     conversation: {
       findFirst: async (args: any) => {
-        return null;
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.conversation.findFirst(args);
+          } catch {}
+        }
+        return resilientStore.findConversationUnique(args);
       },
       findUnique: async (args: any) => {
-        return null;
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.conversation.findUnique(args);
+          } catch {}
+        }
+        return resilientStore.findConversationUnique(args);
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.conversation.findMany(args);
+          } catch {}
+        }
+        return resilientStore.findConversations(args);
       },
       create: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.conversation.create(args);
+          } catch {}
+        }
         return resilientStore.createConversation(args);
       },
       update: async (args: any) => {
@@ -224,6 +247,11 @@ function createSelfHealingDb() {
     },
     message: {
       create: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.message.create(args);
+          } catch {}
+        }
         return resilientStore.createMessage(args);
       },
       findMany: async (args: any) => {
