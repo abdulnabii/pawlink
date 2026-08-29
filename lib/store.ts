@@ -520,7 +520,13 @@ export class ResilientDataStore {
   async findTagFirst(args: any) {
     await this.syncFromCloud();
     if (args?.where?.tagCode) {
-      const tag = this.tags.find((t) => t.tagCode?.toUpperCase() === args.where.tagCode.toUpperCase());
+      const rawTarget = (args.where.tagCode || "").trim().toUpperCase();
+      const targetClean = rawTarget.replace(/[^A-Z0-9]/g, "");
+      const tag = this.tags.find((t) => {
+        const rawCode = (t.tagCode || "").trim().toUpperCase();
+        const codeClean = rawCode.replace(/[^A-Z0-9]/g, "");
+        return rawCode === rawTarget || codeClean === targetClean;
+      });
       if (!tag) return null;
       return this.hydrateTag(tag);
     }
@@ -580,11 +586,20 @@ export class ResilientDataStore {
       .filter((a) => a.tagId === cleanedTag.id && !a.unassignedAt)
       .map((a) => {
         const pet = this.pets.find((p) => p.id === a.petId);
+        const owner = pet ? this.users.find((u) => u.id === pet.userId) : null;
         return {
           ...a,
           pet: pet
             ? {
                 ...pet,
+                user: owner
+                  ? {
+                      id: owner.id,
+                      name: owner.name,
+                      phone: owner.phone,
+                      email: owner.email,
+                    }
+                  : null,
                 recoveryCases: this.recoveryCases.filter((c) => c.petId === pet.id && c.status === "OPEN"),
                 medicalRecords: pet.medicalRecords || [],
               }

@@ -31,34 +31,40 @@ function createSelfHealingDb() {
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.user.findUnique(args);
+            const res = await rawPrisma.user.findUnique(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findUserUnique(args);
+        return await resilientStore.findUserUnique(args);
       },
       findFirst: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.user.findFirst(args);
+            const res = await rawPrisma.user.findFirst(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findUserFirst(args);
+        return await resilientStore.findUserFirst(args);
       },
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.user.create(args);
+            prismaRes = await rawPrisma.user.create(args);
           } catch {}
         }
-        return resilientStore.createUser(args);
+        const storeRes = await resilientStore.createUser(args);
+        return prismaRes || storeRes;
       },
       update: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.user.update(args);
+            prismaRes = await rawPrisma.user.update(args);
           } catch {}
         }
-        return resilientStore.updateUser(args);
+        const storeRes = await resilientStore.updateUser(args);
+        return prismaRes || storeRes;
       },
     },
     pet: {
@@ -69,42 +75,57 @@ function createSelfHealingDb() {
       findMany: async (args?: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.pet.findMany(args);
+            const res = await rawPrisma.pet.findMany(args);
+            if (Array.isArray(res) && res.length > 0) return res;
           } catch {}
         }
-        return resilientStore.findPets(args);
+        return await resilientStore.findPets(args);
       },
       findFirst: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.pet.findFirst(args);
+            const res = await rawPrisma.pet.findFirst(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findPetFirst(args);
+        return await resilientStore.findPetFirst(args);
       },
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.pet.findUnique(args);
+            const res = await rawPrisma.pet.findUnique(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findPetFirst(args);
+        return await resilientStore.findPetFirst(args);
       },
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.pet.create(args);
+            prismaRes = await rawPrisma.pet.create(args);
           } catch {}
         }
-        return resilientStore.createPet(args);
+        const storeRes = await resilientStore.createPet(args);
+        return prismaRes || storeRes;
       },
       update: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.pet.update(args);
+            prismaRes = await rawPrisma.pet.update(args);
           } catch {}
         }
-        return resilientStore.updatePet(args);
+        const storeRes = await resilientStore.updatePet(args);
+        return prismaRes || storeRes;
+      },
+      delete: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            await rawPrisma.pet.delete(args);
+          } catch {}
+        }
+        return { success: true };
       },
     },
     tag: {
@@ -115,42 +136,49 @@ function createSelfHealingDb() {
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.tag.findUnique(args);
+            const res = await rawPrisma.tag.findUnique(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findTagFirst(args);
+        return await resilientStore.findTagFirst(args);
       },
       findFirst: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.tag.findFirst(args);
+            const res = await rawPrisma.tag.findFirst(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findTagFirst(args);
+        return await resilientStore.findTagFirst(args);
       },
       findMany: async (args?: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.tag.findMany(args);
+            const res = await rawPrisma.tag.findMany(args);
+            if (Array.isArray(res) && res.length > 0) return res;
           } catch {}
         }
-        return resilientStore.findTags(args);
+        return await resilientStore.findTags(args);
       },
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.tag.create(args);
+            prismaRes = await rawPrisma.tag.create(args);
           } catch {}
         }
-        return resilientStore.createTag(args);
+        const storeRes = await resilientStore.createTag(args);
+        return prismaRes || storeRes;
       },
       update: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.tag.update(args);
+            prismaRes = await rawPrisma.tag.update(args);
           } catch {}
         }
-        return resilientStore.updateTag(args);
+        const storeRes = await resilientStore.updateTag(args);
+        return prismaRes || storeRes;
       },
     },
     tagAssignment: {
@@ -160,50 +188,80 @@ function createSelfHealingDb() {
       updateMany: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.tagAssignment.updateMany(args);
+            await rawPrisma.tagAssignment.updateMany(args);
           } catch {}
         }
-        return resilientStore.updateManyTagAssignments(args);
+        return await resilientStore.updateManyTagAssignments(args);
       },
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.tagAssignment.create(args);
+            prismaRes = await rawPrisma.tagAssignment.create(args);
           } catch {}
         }
-        return resilientStore.createTagAssignment(args);
+        const storeRes = await resilientStore.createTagAssignment(args);
+        return prismaRes || storeRes;
       },
     },
     recoveryCase: {
       count: async (args?: any) => resilientStore.getMetrics().recoveredCases,
       findFirst: async (args: any) => {
-        return null;
+        if (rawPrisma) {
+          try {
+            const res = await rawPrisma.recoveryCase.findFirst(args);
+            if (res) return res;
+          } catch {}
+        }
+        const cases = await resilientStore.findRecoveryCases(args);
+        return cases[0] || null;
       },
       updateMany: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            await rawPrisma.recoveryCase.updateMany(args);
+          } catch {}
+        }
         return { count: 1 };
       },
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.recoveryCase.create(args);
+            prismaRes = await rawPrisma.recoveryCase.create(args);
           } catch {}
         }
-        return resilientStore.createRecoveryCase(args);
+        const storeRes = await resilientStore.createRecoveryCase(args);
+        return prismaRes || storeRes;
       },
       update: async (args: any) => {
-        return { id: args.where?.id, ...args.data };
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.recoveryCase.update(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.updateRecoveryCase(args);
+        return prismaRes || storeRes;
       },
     },
     recoveryEvent: {
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.recoveryEvent.create(args);
+            prismaRes = await rawPrisma.recoveryEvent.create(args);
           } catch {}
         }
-        return resilientStore.createRecoveryEvent(args);
+        const storeRes = await resilientStore.createRecoveryEvent(args);
+        return prismaRes || storeRes;
       },
       createMany: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            await rawPrisma.recoveryEvent.createMany(args);
+          } catch {}
+        }
         return { count: args.data?.length || 0 };
       },
     },
@@ -214,22 +272,26 @@ function createSelfHealingDb() {
         return null;
       },
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.scanEvent.create(args);
+            prismaRes = await rawPrisma.scanEvent.create(args);
           } catch {}
         }
-        return resilientStore.createScanEvent(args);
+        const storeRes = await resilientStore.createScanEvent(args);
+        return prismaRes || storeRes;
       },
     },
     locationEvent: {
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.locationEvent.create(args);
+            prismaRes = await rawPrisma.locationEvent.create(args);
           } catch {}
         }
-        return resilientStore.createLocationEvent(args);
+        const storeRes = await resilientStore.createLocationEvent(args);
+        return prismaRes || storeRes;
       },
       deleteMany: async (args: any) => {
         return { count: 1 };
@@ -239,34 +301,39 @@ function createSelfHealingDb() {
       findFirst: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.conversation.findFirst(args);
+            const res = await rawPrisma.conversation.findFirst(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findConversationUnique(args);
+        return await resilientStore.findConversationUnique(args);
       },
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.conversation.findUnique(args);
+            const res = await rawPrisma.conversation.findUnique(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findConversationUnique(args);
+        return await resilientStore.findConversationUnique(args);
       },
       findMany: async (args?: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.conversation.findMany(args);
+            const res = await rawPrisma.conversation.findMany(args);
+            if (Array.isArray(res) && res.length > 0) return res;
           } catch {}
         }
-        return resilientStore.findConversations(args);
+        return await resilientStore.findConversations(args);
       },
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.conversation.create(args);
+            prismaRes = await rawPrisma.conversation.create(args);
           } catch {}
         }
-        return resilientStore.createConversation(args);
+        const storeRes = await resilientStore.createConversation(args);
+        return prismaRes || storeRes;
       },
       update: async (args: any) => {
         return { id: args.where?.id, ...args.data };
@@ -274,12 +341,14 @@ function createSelfHealingDb() {
     },
     message: {
       create: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.message.create(args);
+            prismaRes = await rawPrisma.message.create(args);
           } catch {}
         }
-        return resilientStore.createMessage(args);
+        const storeRes = await resilientStore.createMessage(args);
+        return prismaRes || storeRes;
       },
       findMany: async (args: any) => {
         return [];
@@ -288,13 +357,13 @@ function createSelfHealingDb() {
     notificationJob: {
       findMany: async (args?: any) => resilientStore.getRecentJobs(args?.take || 10),
       create: async (args: any) => {
-        return resilientStore.createNotificationJob(args);
+        return await resilientStore.createNotificationJob(args);
       },
     },
     notification: {
       groupBy: async () => [],
       create: async (args: any) => {
-        return resilientStore.createNotification(args);
+        return await resilientStore.createNotification(args);
       },
       findMany: async (args: any) => {
         return [];
@@ -304,23 +373,25 @@ function createSelfHealingDb() {
       upsert: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.notificationPreference.upsert(args);
+            const res = await rawPrisma.notificationPreference.upsert(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.upsertNotificationPreference(args);
+        return await resilientStore.upsertNotificationPreference(args);
       },
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
-            return await rawPrisma.notificationPreference.findUnique(args);
+            const res = await rawPrisma.notificationPreference.findUnique(args);
+            if (res) return res;
           } catch {}
         }
-        return resilientStore.findNotificationPreferenceUnique(args);
+        return await resilientStore.findNotificationPreferenceUnique(args);
       },
     },
     auditLog: {
       create: async (args: any) => {
-        return resilientStore.createAuditLog(args);
+        return await resilientStore.createAuditLog(args);
       },
     },
   } as unknown as PrismaClient;

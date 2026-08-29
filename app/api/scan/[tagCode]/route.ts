@@ -9,7 +9,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { tagCode: string } }
 ) {
-  const tagCode = params.tagCode.toUpperCase().trim();
+  const rawCode = decodeURIComponent(params.tagCode || "").trim().toUpperCase();
+  const tagCode = rawCode.replace(/[^A-Z0-9-]/g, "");
   const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "127.0.0.1";
   const userAgent = req.headers.get("user-agent") || "";
   const ipHash = hashIp(ip);
@@ -60,7 +61,7 @@ export async function GET(
       return NextResponse.json(
         {
           error: "TAG_NOT_FOUND",
-          message: "This PawLink tag is not recognized or has not been registered.",
+          message: `This PawLink tag (${tagCode}) is not recognized or has not been registered.`,
         },
         { status: 404 }
       );
@@ -76,7 +77,8 @@ export async function GET(
       );
     }
 
-    const assignment = tag.assignments[0];
+    const assignments = Array.isArray(tag.assignments) ? tag.assignments : [];
+    const assignment = assignments[0];
     const pet = assignment?.pet;
 
     if (!pet) {
