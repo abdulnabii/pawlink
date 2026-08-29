@@ -53,7 +53,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     fetch(`/api/pets/${petId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.pet) setPet(data.pet);
+        if (data?.pet) setPet(data.pet);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -66,11 +66,23 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
 
   if (!mounted) return null;
 
-  const handlePurgeLocationHistory = async () => {
-    if (!confirm("Are you sure you want to permanently delete all GPS location records for this pet?")) {
-      return;
-    }
+  if (loading) {
+    return <div className="p-12 text-center text-slate-400 text-sm">Loading Pet Hub...</div>;
+  }
 
+  if (!pet) {
+    return (
+      <div className="p-12 text-center">
+        <h3 className="text-base font-bold text-slate-800">Pet not found</h3>
+        <Link href="/dashboard/pets" className="text-xs font-semibold text-teal-600 hover:underline mt-2 inline-block">
+          Return to Pets List
+        </Link>
+      </div>
+    );
+  }
+
+  const handlePurgeLocationHistory = async () => {
+    if (!confirm("Are you sure you want to permanently delete all GPS location records for this pet?")) return;
     setPurgingLocations(true);
     try {
       const res = await fetch(`/api/pets/${petId}/locations/purge`, { method: "POST" });
@@ -98,7 +110,6 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
           isPublicAlert,
         }),
       });
-
       if (res.ok) {
         setShowAddMedical(false);
         setMedicalTitle("");
@@ -111,33 +122,20 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     }
   };
 
-  if (loading) {
-    return <div className="p-12 text-center text-slate-400 text-sm">Loading Pet Hub...</div>;
-  }
-
-  if (!pet) {
-    return (
-      <div className="p-12 text-center">
-        <h3 className="text-base font-bold text-slate-800">Pet not found</h3>
-        <Link href="/dashboard/pets" className="text-xs font-semibold text-teal-600 hover:underline mt-2 inline-block">
-          Return to Pets List
-        </Link>
-      </div>
-    );
-  }
-
-  const activeTag = pet.tagAssignments?.[0]?.tag;
-  const activeCase = pet.recoveryCases?.find((rc: any) => rc.status === "OPEN");
+  // Safe accessor helpers — no null crashes
+  const activeTag = pet.tagAssignments?.[0]?.tag ?? null;
+  const recoveryCases = Array.isArray(pet.recoveryCases) ? pet.recoveryCases : [];
+  const activeCase = recoveryCases.find((rc: any) => rc?.status === "OPEN") ?? null;
   const isLost = pet.status === "LOST" || Boolean(activeCase);
-  const locationEvents = activeCase?.locationEvents || [];
+  const locationEvents = Array.isArray(activeCase?.locationEvents) ? activeCase.locationEvents : [];
+  const medicalRecords = Array.isArray(pet.medicalRecords) ? pet.medicalRecords : [];
+  const recoveryEvents = Array.isArray(pet.recoveryEvents) ? pet.recoveryEvents : [];
+  const speciesLower = (pet.species || "").toLowerCase();
 
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Back Link */}
-      <Link
-        href="/dashboard/pets"
-        className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900"
-      >
+      <Link href="/dashboard/pets" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900">
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Pets</span>
       </Link>
@@ -150,16 +148,21 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 p-0.5 border border-slate-200 shrink-0">
               {pet.photoUrl ? (
-                <img src={pet.photoUrl} alt={pet.name} className="w-full h-full object-cover rounded-xl" />
+                <img
+                  src={pet.photoUrl}
+                  alt={pet.name || "Pet"}
+                  className="w-full h-full object-cover rounded-xl"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-4xl">
-                  {pet.species.toLowerCase() === "cat" ? "🐈" : "🐕"}
+                  {speciesLower === "cat" ? "🐈" : "🐕"}
                 </div>
               )}
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{pet.name}</h1>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{pet.name || "Pet"}</h1>
                 <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${
                   isLost
                     ? "bg-red-600 text-white border-red-600 shadow animate-pulse"
@@ -169,7 +172,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
-                {pet.breed || pet.species} • {pet.gender || "Unknown"} {pet.color ? `• ${pet.color}` : ""}
+                {pet.breed || pet.species || "Animal"} • {pet.gender || "Unknown"} {pet.color ? `• ${pet.color}` : ""}
               </p>
             </div>
           </div>
@@ -193,9 +196,9 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
         {/* If Lost Mode Active: Context banner */}
         {isLost && activeCase && (
           <div className="mt-6 p-4 rounded-2xl bg-white border border-red-200 shadow-sm text-xs space-y-1 text-red-950">
-            <p><strong>🚨 Missing Since:</strong> {new Date(activeCase.startedAt).toLocaleString()}</p>
+            {activeCase.startedAt && <p><strong>🚨 Missing Since:</strong> {new Date(activeCase.startedAt).toLocaleString()}</p>}
             {activeCase.lastSeenLocation && <p><strong>📍 Last Seen:</strong> {activeCase.lastSeenLocation}</p>}
-            {activeCase.rewardAmount > 0 && <p><strong>💰 Reward Offered:</strong> ${activeCase.rewardAmount}</p>}
+            {activeCase.rewardAmount > 0 && <p><strong>💰 Reward Offered:</strong> PKR {activeCase.rewardAmount}</p>}
             {activeCase.description && <p className="italic">&ldquo;{activeCase.description}&rdquo;</p>}
           </div>
         )}
@@ -210,7 +213,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-teal-600" />
-                  <span>Recovery Radar & Location Pins</span>
+                  <span>Recovery Radar &amp; Location Pins</span>
                 </h3>
                 <p className="text-xs text-slate-500">
                   Visual map of finder-shared GPS coordinates and last seen points.
@@ -229,11 +232,11 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
             </div>
 
             <RecoveryMap
-              lastSeenLat={activeCase?.lastSeenLatitude}
-              lastSeenLng={activeCase?.lastSeenLongitude}
-              lastSeenLocation={activeCase?.lastSeenLocation}
+              lastSeenLat={activeCase?.lastSeenLatitude ?? null}
+              lastSeenLng={activeCase?.lastSeenLongitude ?? null}
+              lastSeenLocation={activeCase?.lastSeenLocation ?? null}
               locationEvents={locationEvents}
-              petName={pet.name}
+              petName={pet.name || "Pet"}
             />
 
             <div className="mt-4 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
@@ -246,7 +249,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
           </div>
 
           {/* Connected Tag & Badge View */}
-          {activeTag ? (
+          {activeTag && activeTag.tagCode && pet.name && pet.species ? (
             <PrintableTagBadge
               tagCode={activeTag.tagCode}
               petName={pet.name}
@@ -272,7 +275,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
         {/* Right Column: Timeline & Medical Alerts */}
         <div className="space-y-6">
           {/* Recovery Timeline */}
-          <RecoveryTimeline events={pet.recoveryEvents || []} petName={pet.name} />
+          <RecoveryTimeline events={recoveryEvents} petName={pet.name || "Pet"} />
 
           {/* Medical Records & Emergency Alerts */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
@@ -280,10 +283,10 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Heart className="w-5 h-5 text-rose-500" />
-                  <span>Medical & Allergy Passport</span>
+                  <span>Medical &amp; Allergy Passport</span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Emergency health notes & public allergy warnings.
+                  Emergency health notes &amp; public allergy warnings.
                 </p>
               </div>
               <button
@@ -347,17 +350,10 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
                 </label>
 
                 <div className="flex justify-end gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddMedical(false)}
-                    className="px-3 py-1.5 text-xs text-slate-600 font-semibold"
-                  >
+                  <button type="button" onClick={() => setShowAddMedical(false)} className="px-3 py-1.5 text-xs text-slate-600 font-semibold">
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-sm"
-                  >
+                  <button type="submit" className="px-4 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-sm">
                     Save Record
                   </button>
                 </div>
@@ -365,24 +361,24 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
             )}
 
             {/* Medical records list */}
-            {pet.medicalRecords?.length === 0 ? (
+            {medicalRecords.length === 0 ? (
               <p className="text-xs text-slate-400 italic text-center py-4">No medical alerts recorded.</p>
             ) : (
               <div className="space-y-2">
-                {pet.medicalRecords?.map((rec: any) => (
-                  <div key={rec.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-start justify-between gap-3 text-xs">
+                {medicalRecords.map((rec: any) => (
+                  <div key={rec?.id || Math.random()} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-start justify-between gap-3 text-xs">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{rec.title}</span>
-                        {rec.isPublicAlert && (
+                        <span className="font-bold text-slate-900">{rec?.title}</span>
+                        {rec?.isPublicAlert && (
                           <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300">
                             Public Alert
                           </span>
                         )}
                       </div>
-                      {rec.description && <p className="text-slate-600 mt-0.5">{rec.description}</p>}
+                      {rec?.description && <p className="text-slate-600 mt-0.5">{rec.description}</p>}
                     </div>
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">{rec.recordType}</span>
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase">{rec?.recordType}</span>
                   </div>
                 ))}
               </div>
@@ -394,7 +390,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
       {/* LOST MODE CONTROLLER MODAL */}
       <LostModeModal
         petId={pet.id}
-        petName={pet.name}
+        petName={pet.name || "Pet"}
         isCurrentlyLost={isLost}
         isOpen={lostModalOpen}
         onClose={() => setLostModalOpen(false)}
