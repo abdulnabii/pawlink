@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CreatePetInputSchema } from "@/lib/validation";
+import { sanitizePrisma } from "@/lib/sanitize";
 
 export async function GET() {
   try {
@@ -31,7 +32,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ pets });
+    return NextResponse.json({ pets: sanitizePrisma(pets) });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load pets";
     return NextResponse.json({ error: message }, { status: 401 });

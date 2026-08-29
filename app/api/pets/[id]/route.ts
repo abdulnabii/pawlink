@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { UpdatePetInputSchema } from "@/lib/validation";
+import { sanitizePrisma } from "@/lib/sanitize";
 
 export async function GET(
   req: NextRequest,
@@ -50,7 +51,7 @@ export async function GET(
       return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ pet });
+    return NextResponse.json({ pet: sanitizePrisma(pet) });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load pet details";
     return NextResponse.json({ error: message }, { status: 400 });
