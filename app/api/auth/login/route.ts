@@ -15,6 +15,13 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const validated = LoginInputSchema.parse(body);
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json(
+        { error: "DATABASE_URL is missing in Vercel environment variables. Please add DATABASE_URL in Vercel Settings -> Environment Variables and redeploy." },
+        { status: 500 }
+      );
+    }
+
     const email = validated.email.toLowerCase();
 
     // 1. If Supabase is configured, attempt Supabase Auth sign-in
