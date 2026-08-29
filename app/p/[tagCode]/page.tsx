@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ShieldAlert,
   AlertTriangle,
@@ -17,10 +18,12 @@ import {
   Sparkles,
   Info,
   ShieldCheck,
+  ArrowRight,
 } from "lucide-react";
 import { PublicPetResponse } from "@/lib/dto";
 
 export default function PublicFinderPage({ params }: { params?: { tagCode: string } }) {
+  const router = useRouter();
   const routeParams = useParams();
   const rawTagCode = params?.tagCode || (routeParams?.tagCode as string) || "";
   const tagCode = rawTagCode.toUpperCase();
@@ -34,6 +37,8 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
   const [locationSharedSuccess, setLocationSharedSuccess] = useState(false);
   const [showLocationConsent, setShowLocationConsent] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [manualAddressInput, setManualAddressInput] = useState("");
+  const [showManualLocation, setShowManualLocation] = useState(false);
 
   // In-app chat / contact states
   const [showContactModal, setShowContactModal] = useState(false);
@@ -44,6 +49,8 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
   const [isSafeWithMe, setIsSafeWithMe] = useState(true);
   const [submittingForm, setSubmittingForm] = useState(false);
   const [formSuccess, setFormSuccess] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [createdChat, setCreatedChat] = useState<{ conversationId: string; finderToken: string } | null>(null);
 
   useEffect(() => {
     if (!tagCode) return;
@@ -64,9 +71,41 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
       });
   }, [tagCode]);
 
+  const sendCoordinates = async (lat: number, lng: number, acc: number, addr: string) => {
+    setSharingLocation(true);
+    setLocationError(null);
+
+    try {
+      const res = await fetch("/api/location-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tagCode,
+          latitude: lat,
+          longitude: lng,
+          accuracy: acc || 15,
+          addressName: addr || "GPS Pinned Spot",
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLocationSharedSuccess(true);
+        setShowLocationConsent(false);
+        setShowManualLocation(false);
+      } else {
+        setLocationError(data.error || "Failed to transmit coordinates.");
+      }
+    } catch {
+      setLocationError("Network error transmitting location.");
+    } finally {
+      setSharingLocation(false);
+    }
+  };
+
   const handleShareLocation = () => {
     if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your browser.");
+      setShowManualLocation(true);
       return;
     }
 
@@ -74,51 +113,35 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
     setLocationError(null);
 
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude, accuracy } = pos.coords;
-          const addressName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-
-          const res = await fetch("/api/location-event", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tagCode,
-              latitude,
-              longitude,
-              accuracy: accuracy || 15,
-              addressName: "GPS Pinned Location",
-            }),
-          });
-
-          if (res.ok) {
-            setLocationSharedSuccess(true);
-            setShowLocationConsent(false);
-          } else {
-            const data = await res.json().catch(() => ({}));
-            setLocationError(data.error || "Failed to transmit coordinates. Please try again.");
-          }
-        } catch {
-          setLocationError("Error sending location data.");
-        } finally {
-          setSharingLocation(false);
-        }
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        const addr = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        sendCoordinates(latitude, longitude, accuracy, addr);
       },
       (err) => {
         setSharingLocation(false);
+        setShowManualLocation(true);
         if (err.code === err.PERMISSION_DENIED) {
-          setLocationError("Location permission was denied in your browser settings. You can still message the owner below.");
+          setLocationError("Location permission not granted. You can type your location below.");
         } else {
-          setLocationError("Could not retrieve GPS coordinates. Please ensure location services are enabled on your device.");
+          setLocationError("GPS timeout. Please type your location below.");
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
     );
+  };
+
+  const handleManualLocationSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualAddressInput.trim()) return;
+    // Transmit approximate default lat/lng with custom landmark
+    sendCoordinates(24.8165, 67.0325, 50, manualAddressInput.trim());
   };
 
   const handleFoundSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingForm(true);
+    setFormError(null);
 
     try {
       const res = await fetch("/api/conversations", {
@@ -126,17 +149,24 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tagCode,
-          finderName: finderName || "Helpful Finder",
-          finderPhone: finderPhone || null,
-          initialMessage: `[I Found This Pet] Status: ${isSafeWithMe ? "The pet is currently safe with me." : "Spotted the pet."} Note: ${finderMessage}`,
+          finderName: finderName.trim() || "Helpful Finder",
+          finderPhone: finderPhone.trim() || null,
+          initialMessage: `[I Found This Pet] Status: ${isSafeWithMe ? "Safe with me" : "Spotted"}. Note: ${finderMessage.trim()}`,
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCreatedChat({
+          conversationId: data.conversationId,
+          finderToken: data.finderToken,
+        });
         setFormSuccess(true);
+      } else {
+        setFormError(data.error || "Failed to deliver message. Please try again.");
       }
     } catch {
-      // Ignore
+      setFormError("Network error. Please check your internet connection.");
     } finally {
       setSubmittingForm(false);
     }
@@ -278,9 +308,9 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
             <div className="w-full p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center gap-3 shadow-sm">
               <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
               <div className="text-left text-xs">
-                <p className="font-bold text-sm text-emerald-950">Location Shared!</p>
+                <p className="font-bold text-sm text-emerald-950">Location Transmitted!</p>
                 <p className="text-emerald-800">
-                  Your coordinates were securely transmitted to {petData.petName}&apos;s family.
+                  Your coordinates were pinned directly to {petData.petName}&apos;s owner map.
                 </p>
               </div>
             </div>
@@ -290,7 +320,7 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
               className="w-full py-4 px-6 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-base shadow-lg shadow-teal-600/30 flex items-center justify-center gap-2.5 transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               <Navigation className="w-5 h-5 text-teal-200 animate-pulse" />
-              <span>📍 Share My Location with Owner</span>
+              <span>📍 Share Location with Owner</span>
             </button>
           )}
 
@@ -332,7 +362,7 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
         </div>
       </main>
 
-      {/* LOCATION CONSENT MODAL */}
+      {/* LOCATION CONSENT / SELECTION MODAL */}
       {showLocationConsent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center">
@@ -341,29 +371,64 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
             </div>
             <h3 className="text-lg font-bold text-slate-900">Share Your Current Location?</h3>
             <p className="text-xs text-slate-600 mt-2 mb-6 leading-relaxed">
-              Your GPS coordinates will be sent <strong>privately to {petData.petName}&apos;s owner</strong> so they can navigate directly to where you found their pet. Coordinates are never made public.
+              Your location is sent <strong>privately to {petData.petName}&apos;s family</strong> to help them navigate to their pet.
             </p>
 
-            <div className="space-y-2">
-              <button
-                onClick={handleShareLocation}
-                disabled={sharingLocation}
-                className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 transition-all"
-              >
-                {sharingLocation ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Navigation className="w-4 h-4" />
-                )}
-                <span>Allow & Share Location</span>
-              </button>
-              <button
-                onClick={() => setShowLocationConsent(false)}
-                className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-colors"
-              >
-                Continue Without Location
-              </button>
-            </div>
+            {showManualLocation ? (
+              <form onSubmit={handleManualLocationSubmit} className="space-y-3 text-left">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                    Describe Your Location / Street / Landmark:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={manualAddressInput}
+                    onChange={(e) => setManualAddressInput(e.target.value)}
+                    placeholder="e.g. Near Clifton Beach Cafe, Karachi"
+                    className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={sharingLocation}
+                  className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5"
+                >
+                  {sharingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  <span>Submit Location Note</span>
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  onClick={handleShareLocation}
+                  disabled={sharingLocation}
+                  className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 transition-all"
+                >
+                  {sharingLocation ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Navigation className="w-4 h-4" />
+                  )}
+                  <span>Allow GPS & Share Location</span>
+                </button>
+                <button
+                  onClick={() => setShowManualLocation(true)}
+                  className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition-colors"
+                >
+                  Type Landmark / Street Manually
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLocationConsent(false);
+                    setShowManualLocation(false);
+                  }}
+                  className="w-full py-2 text-slate-400 font-medium text-xs hover:text-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -387,7 +452,6 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
               {petData.contactOptions.allowWhatsApp && (
                 <button
                   onClick={() => {
-                    // Open WhatsApp trigger
                     window.open(
                       `https://wa.me/?text=${encodeURIComponent(
                         `Hi, I just scanned ${petData.petName}'s PawLink tag (${petData.tagCode})! I would like to help reunite your pet.`
@@ -438,22 +502,31 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
               ✕
             </button>
 
-            {formSuccess ? (
+            {formSuccess && createdChat ? (
               <div className="text-center py-6">
-                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-3" />
-                <h4 className="text-xl font-black text-slate-900">Message Sent to Owner!</h4>
-                <p className="text-xs text-slate-600 mt-2 mb-6">
-                  Thank you for helping {petData.petName}! The owner has received an alert and will review your note.
+                <CheckCircle2 className="w-14 h-14 text-emerald-600 mx-auto mb-3" />
+                <h4 className="text-xl font-black text-slate-900">Message Delivered to Owner!</h4>
+                <p className="text-xs text-slate-600 mt-2 mb-6 max-w-xs mx-auto leading-relaxed">
+                  The owner has received your message alert. You can now chat with them directly in the secure finder chat.
                 </p>
-                <button
-                  onClick={() => {
-                    setShowFoundForm(false);
-                    setFormSuccess(false);
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs"
-                >
-                  Close
-                </button>
+                <div className="space-y-2">
+                  <Link
+                    href={`/c/${createdChat.conversationId}?token=${createdChat.finderToken}`}
+                    className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow"
+                  >
+                    <span>Open Live Finder Chat</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setShowFoundForm(false);
+                      setFormSuccess(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50"
+                  >
+                    Stay on Scan Page
+                  </button>
+                </div>
               </div>
             ) : (
               <div>
@@ -463,6 +536,12 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
                 <p className="text-xs text-slate-500 mb-4">
                   Send a quick message to the owner. No account required.
                 </p>
+
+                {formError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 mb-3">
+                    {formError}
+                  </div>
+                )}
 
                 <form onSubmit={handleFoundSubmit} className="space-y-3.5">
                   <div className="p-3 bg-teal-50 rounded-xl border border-teal-200 flex items-center justify-between">
@@ -508,7 +587,7 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
 
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Message for the Owner
+                      Message for the Owner *
                     </label>
                     <textarea
                       required
