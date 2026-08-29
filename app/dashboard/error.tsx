@@ -26,6 +26,11 @@ export default function DashboardError({
           <p className="text-xs text-slate-500 mt-1">
             Your pets and collar tags are safely saved in the cloud. Try reloading.
           </p>
+          {error?.message && (
+            <p className="text-[10px] font-mono bg-slate-100 text-slate-600 rounded-lg p-2 mt-2 text-left break-all">
+              Error: {error.message}
+            </p>
+          )}
         </div>
         <div className="flex items-center justify-center gap-3 pt-2">
           <button
