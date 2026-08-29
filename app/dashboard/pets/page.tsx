@@ -6,6 +6,7 @@ import { Plus, Dog, QrCode, ArrowRight, ShieldCheck, AlertTriangle } from "lucid
 
 export default function PetsListPage() {
   const [pets, setPets] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -13,11 +14,14 @@ export default function PetsListPage() {
     setMounted(true);
     let active = true;
 
-    fetch("/api/pets")
-      .then((res) => res.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/pets").then((res) => res.json()).catch(() => ({ pets: [] })),
+      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+    ])
+      .then(([petsData, subData]) => {
         if (active) {
-          if (Array.isArray(data?.pets)) setPets(data.pets);
+          if (Array.isArray(petsData?.pets)) setPets(petsData.pets);
+          if (subData?.subscription) setSubscription(subData.subscription);
           setLoading(false);
         }
       })
@@ -33,22 +37,38 @@ export default function PetsListPage() {
   if (!mounted) return null;
 
   const safePets = Array.isArray(pets) ? pets : [];
+  const planId = (subscription?.plan || "FREE").toUpperCase();
+  const maxAllowedPets = planId === "PRO" ? 999 : planId === "PLUS" ? 5 : 1;
+  const isLimitReached = safePets.length >= maxAllowedPets;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Your Pets</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Your Pets</h1>
+            <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+              isLimitReached
+                ? "bg-amber-50 text-amber-800 border-amber-300"
+                : "bg-slate-100 text-slate-700 border-slate-200"
+            }`}>
+              {safePets.length} / {maxAllowedPets === 999 ? "∞" : maxAllowedPets} Pets ({planId === "PRO" ? "Pro" : planId === "PLUS" ? "Plus" : "Basic ID"})
+            </span>
+          </div>
           <p className="text-sm text-slate-500 mt-0.5">
             Manage profiles, attach QR collar badges, and toggle emergency Lost Mode.
           </p>
         </div>
         <Link
-          href="/dashboard/pets/new"
-          className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-teal-600/20"
+          href={isLimitReached ? "/dashboard/settings" : "/dashboard/pets/new"}
+          className={`inline-flex items-center gap-2 font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all ${
+            isLimitReached
+              ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
+              : "bg-teal-600 hover:bg-teal-700 text-white shadow-teal-600/20"
+          }`}
         >
           <Plus className="w-4 h-4" />
-          <span>Add New Pet</span>
+          <span>{isLimitReached ? "Upgrade to Add Pet" : "Add New Pet"}</span>
         </Link>
       </div>
 

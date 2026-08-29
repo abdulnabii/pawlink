@@ -39,8 +39,16 @@ export class NotificationService {
     let primaryResult: NotificationSendResult | undefined;
     let fallbackResult: NotificationSendResult | undefined;
 
-    // 2. Primary: Attempt WhatsApp if enabled and verified
-    const shouldSendWhatsApp = prefs ? prefs.whatsappEnabled && prefs.whatsappVerified && Boolean(recipientPhone) : Boolean(recipientPhone);
+    // 2. Check Subscription Plan for WhatsApp alerts entitlement
+    const sub = await db.subscription.findFirst({
+      where: { userId: user.id },
+    });
+    const isPlanEntitledToWhatsApp = sub?.plan === "PLUS" || sub?.plan === "PRO";
+
+    // Primary: Attempt WhatsApp if plan supports it, enabled and verified
+    const shouldSendWhatsApp =
+      isPlanEntitledToWhatsApp &&
+      (prefs ? prefs.whatsappEnabled && prefs.whatsappVerified && Boolean(recipientPhone) : Boolean(recipientPhone));
 
     if (shouldSendWhatsApp && recipientPhone) {
       primaryResult = await this.whatsAppProvider.send({

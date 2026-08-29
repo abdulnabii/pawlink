@@ -46,6 +46,36 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const petId = body.petId as string | undefined;
 
+    // Check subscription plan tag limits
+    const subscription = await db.subscription.findFirst({
+      where: { userId: user.id },
+    });
+    const currentPlan = (subscription?.plan || "FREE").toUpperCase();
+    const existingTags = await db.tag.findMany({
+      where: {
+        assignments: {
+          some: {
+            assignedById: user.id,
+            unassignedAt: null,
+          },
+        },
+      },
+    });
+
+    const maxAllowedTags = currentPlan === "PRO" ? 999 : currentPlan === "PLUS" ? 5 : 1;
+    if (existingTags.length >= maxAllowedTags) {
+      const planName = currentPlan === "FREE" ? "Basic ID" : currentPlan === "PLUS" ? "Plus Recovery" : "Pro Household";
+      return NextResponse.json(
+        {
+          error: "PLAN_TAG_LIMIT_REACHED",
+          message: `Your ${planName} plan is limited to ${maxAllowedTags} active collar tag(s). You currently have ${existingTags.length} active tag(s). Please upgrade your plan in Settings to generate additional tags.`,
+          currentPlan,
+          maxAllowedTags,
+        },
+        { status: 403 }
+      );
+    }
+
     const tagCode = generateTagCode();
     const activationPin = generateActivationPin();
     const qrUrl = getTagRecoveryUrl(tagCode);

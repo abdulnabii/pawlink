@@ -83,6 +83,7 @@ function TagBadge({
 export default function TagsManagerPage() {
   const [tags, setTags] = useState<any[]>([]);
   const [pets, setPets] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -104,12 +105,16 @@ export default function TagsManagerPage() {
       fetch("/api/pets")
         .then((res) => res.json())
         .catch(() => ({ pets: [] })),
+      fetch("/api/subscription")
+        .then((res) => res.json())
+        .catch(() => ({})),
     ])
-      .then(([tagsData, petsData]) => {
+      .then(([tagsData, petsData, subData]) => {
         const loadedTags = Array.isArray(tagsData?.tags) ? tagsData.tags : [];
         const loadedPets = Array.isArray(petsData?.pets) ? petsData.pets : [];
         setTags(loadedTags);
         setPets(loadedPets);
+        if (subData?.subscription) setSubscription(subData.subscription);
         setLoading(false);
       })
       .catch((err) => {
@@ -182,22 +187,45 @@ export default function TagsManagerPage() {
   const safeTags = Array.isArray(tags) ? tags : [];
   const safePets = Array.isArray(pets) ? pets : [];
 
+  const planId = (subscription?.plan || "FREE").toUpperCase();
+  const maxAllowedTags = planId === "PRO" ? 999 : planId === "PLUS" ? 5 : 1;
+  const isTagLimitReached = safeTags.length >= maxAllowedTags;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Collar Tags &amp; Badges</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Collar Tags &amp; Badges</h1>
+            <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+              isTagLimitReached
+                ? "bg-amber-50 text-amber-800 border-amber-300"
+                : "bg-slate-100 text-slate-700 border-slate-200"
+            }`}>
+              {safeTags.length} / {maxAllowedTags === 999 ? "∞" : maxAllowedTags} Tags ({planId === "PRO" ? "Pro" : planId === "PLUS" ? "Plus" : "Basic ID"})
+            </span>
+          </div>
           <p className="text-sm text-slate-500 mt-0.5">
             Manage QR collar tags, download printable badges, and test scan notifications.
           </p>
         </div>
-        <button
-          onClick={() => setShowNewTagModal(true)}
-          className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Generate New Tag</span>
-        </button>
+        {isTagLimitReached ? (
+          <a
+            href="/dashboard/settings"
+            className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Upgrade to Add Tag</span>
+          </a>
+        ) : (
+          <button
+            onClick={() => setShowNewTagModal(true)}
+            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Generate New Tag</span>
+          </button>
+        )}
       </div>
 
       {testResult && (

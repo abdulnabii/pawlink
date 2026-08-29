@@ -45,6 +45,28 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validated = CreatePetInputSchema.parse(body);
 
+    // 1. Enforce Subscription Plan Limit
+    const subscription = await db.subscription.findFirst({
+      where: { userId: user.id },
+    });
+    const currentPlan = (subscription?.plan || "FREE").toUpperCase();
+    const existingPets = await db.pet.findMany({ where: { userId: user.id } });
+
+    const maxAllowed = currentPlan === "PRO" ? 999 : currentPlan === "PLUS" ? 5 : 1;
+    if (existingPets.length >= maxAllowed) {
+      const planName = currentPlan === "FREE" ? "Basic ID" : currentPlan === "PLUS" ? "Plus Recovery" : "Pro Household";
+      return NextResponse.json(
+        {
+          error: "PLAN_LIMIT_REACHED",
+          message: `Your current ${planName} plan is limited to ${maxAllowed} pet profile(s). You currently have ${existingPets.length} pet(s). Upgrade to Plus Recovery (up to 5 pets) or Pro Household (unlimited) in Settings to add more animals.`,
+          currentPlan,
+          maxAllowed,
+          currentCount: existingPets.length,
+        },
+        { status: 403 }
+      );
+    }
+
     const pet = await db.pet.create({
       data: {
         userId: user.id,

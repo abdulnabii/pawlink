@@ -21,6 +21,7 @@ export default function DashboardOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [pets, setPets] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -32,12 +33,14 @@ export default function DashboardOverviewPage() {
       fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
       fetch("/api/pets").then((res) => res.json()).catch(() => ({})),
       fetch("/api/tags").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
     ])
-      .then(([userData, petsData, tagsData]) => {
+      .then(([userData, petsData, tagsData, subData]) => {
         if (active) {
           if (userData?.user) setUser(userData.user);
           if (Array.isArray(petsData?.pets)) setPets(petsData.pets);
           if (Array.isArray(tagsData?.tags)) setTags(tagsData.tags);
+          if (subData?.subscription) setSubscription(subData.subscription);
           setLoading(false);
         }
       })
@@ -60,11 +63,16 @@ export default function DashboardOverviewPage() {
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  const safeTags = Array.isArray(tags) ? tags : [];
   const safePets = Array.isArray(pets) ? pets : [];
-  const totalScans = safeTags.reduce((acc, tag) => acc + getSafeNumber(tag?.scanCount), 0);
-  const lostPetsCount = safePets.filter((p) => p?.status === "LOST").length;
-  const activeTagsCount = safeTags.filter((t) => t?.status === "ACTIVE").length;
+  const safeTags = Array.isArray(tags) ? tags : [];
+
+  const lostPetsCount = safePets.filter((p: any) => p && p.status === "LOST").length;
+  const activeTagsCount = safeTags.filter((t: any) => t && t.status === "ACTIVE").length;
+  const totalScans = safeTags.reduce((sum: number, t: any) => sum + getSafeNumber(t?.scanCount), 0);
+
+  const planId = (subscription?.plan || "FREE").toUpperCase();
+  const maxAllowedPets = planId === "PRO" ? 999 : planId === "PLUS" ? 5 : 1;
+  const isPetLimitReached = safePets.length >= maxAllowedPets;
 
   if (!mounted) return null;
 
@@ -89,11 +97,15 @@ export default function DashboardOverviewPage() {
             <span>Collar Tags</span>
           </Link>
           <Link
-            href="/dashboard/pets/new"
-            className="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-teal-600/20 transition-all hover:scale-[1.02]"
+            href={isPetLimitReached ? "/dashboard/settings" : "/dashboard/pets/new"}
+            className={`inline-flex items-center gap-1.5 font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all ${
+              isPetLimitReached
+                ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
+                : "bg-teal-600 hover:bg-teal-700 text-white shadow-teal-600/20 hover:scale-[1.02]"
+            }`}
           >
             <Plus className="w-4 h-4" />
-            <span>Add Pet Profile</span>
+            <span>{isPetLimitReached ? "Upgrade to Add Pets" : "Add Pet Profile"}</span>
           </Link>
         </div>
       </div>
@@ -106,7 +118,12 @@ export default function DashboardOverviewPage() {
             <Dog className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pets</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pets</p>
+              <span className="text-[10px] font-black text-slate-400">
+                ({safePets.length}/{maxAllowedPets === 999 ? "∞" : maxAllowedPets})
+              </span>
+            </div>
             <p className="text-2xl font-black text-slate-900 mt-0.5">{safePets.length}</p>
           </div>
         </div>

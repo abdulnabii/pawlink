@@ -36,6 +36,8 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   const petId = params?.id || (routeParams?.id as string);
 
   const [pet, setPet] = useState<any>(null);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lostModalOpen, setLostModalOpen] = useState(false);
   const [purgingLocations, setPurgingLocations] = useState(false);
@@ -50,10 +52,13 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
 
   const fetchPet = () => {
     if (!petId) return;
-    fetch(`/api/pets/${petId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.pet) setPet(data.pet);
+    Promise.all([
+      fetch(`/api/pets/${petId}`).then((res) => res.json()).catch(() => ({})),
+      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+    ])
+      .then(([petData, subData]) => {
+        if (petData?.pet) setPet(petData.pet);
+        if (subData?.subscription) setSubscription(subData.subscription);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -180,18 +185,70 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
           {/* Lost Mode Controller Button */}
           <div>
             <button
-              onClick={() => setLostModalOpen(true)}
+              onClick={() => {
+                if (!isLost && (subscription?.plan || "FREE").toUpperCase() === "FREE") {
+                  setShowUpgradeModal(true);
+                } else {
+                  setLostModalOpen(true);
+                }
+              }}
               className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 ${
                 isLost
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                  : (subscription?.plan || "FREE").toUpperCase() === "FREE"
+                  ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
                   : "bg-red-600 hover:bg-red-700 text-white shadow-red-600/20"
               }`}
             >
-              {isLost ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-              <span>{isLost ? "Mark Pet as Safely Home 🎉" : "Activate Lost Mode 🚨"}</span>
+              {isLost ? (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : (subscription?.plan || "FREE").toUpperCase() === "FREE" ? (
+                <Lock className="w-5 h-5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5" />
+              )}
+              <span>
+                {isLost
+                  ? "Mark Pet as Safely Home 🎉"
+                  : (subscription?.plan || "FREE").toUpperCase() === "FREE"
+                  ? "Activate Lost Mode 🔒 (Plus Plan)"
+                  : "Activate Lost Mode 🚨"}
+              </span>
             </button>
           </div>
         </div>
+
+        {/* Upgrade Modal for Basic Plan Users */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                Emergency Lost Mode Is a Plus Feature
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Your current <strong>Basic ID (Free)</strong> plan covers essential QR tag recovery. To broadcast <strong>Emergency Lost Mode alerts</strong>, display <strong>Reward Banners</strong>, and access <strong>Interactive Leaflet Radar Maps</strong>, please upgrade to the <strong>Plus Recovery Plan (Rs 1,499/mo)</strong>.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Close
+                </button>
+                <Link
+                  href="/dashboard/settings"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+                >
+                  Upgrade via Meezan Bank QR
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* If Lost Mode Active: Context banner */}
         {isLost && activeCase && (

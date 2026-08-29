@@ -33,6 +33,25 @@ export async function POST(
     const dashboardUrl = `${appUrl}/dashboard/pets/${pet.id}`;
 
     if (validated.activate) {
+      // Check subscription tier - Lost Mode is a Plus & Pro feature
+      const subscription = await db.subscription.findFirst({
+        where: { userId: user.id },
+      });
+      const currentPlan = (subscription?.plan || "FREE").toUpperCase();
+
+      if (currentPlan === "FREE") {
+        return NextResponse.json(
+          {
+            error: "PLAN_UPGRADE_REQUIRED",
+            message:
+              "Emergency Lost Mode broadcast and missing pet banner is a Plus Recovery & Pro Household feature. Please upgrade your plan in Settings to broadcast lost alerts.",
+            currentPlan,
+            requiredPlan: "PLUS",
+          },
+          { status: 403 }
+        );
+      }
+
       // 1. ACTIVATE LOST MODE
       const result = await db.$transaction(async (tx: any) => {
         // Close any existing open cases to guarantee single OPEN case constraint

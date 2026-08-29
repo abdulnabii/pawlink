@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Dog, ArrowLeft, Loader2, Sparkles, ShieldCheck, Heart } from "lucide-react";
+import { Dog, ArrowLeft, Loader2, Sparkles, ShieldCheck, Heart, AlertTriangle, Crown, CreditCard } from "lucide-react";
 
 export default function NewPetPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Subscription state
+  const [subscription, setSubscription] = useState<any>(null);
+  const [currentPetCount, setCurrentPetCount] = useState(0);
 
   const [name, setName] = useState("");
   const [species, setSpecies] = useState("Dog");
@@ -23,8 +28,31 @@ export default function NewPetPage() {
   const [allowInAppChat, setAllowInAppChat] = useState(true);
   const [hideOwnerPhone, setHideOwnerPhone] = useState(true);
 
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/pets").then((res) => res.json()).catch(() => ({ pets: [] })),
+      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+    ]).then(([petsData, subData]) => {
+      if (Array.isArray(petsData?.pets)) {
+        setCurrentPetCount(petsData.pets.length);
+      }
+      if (subData?.subscription) {
+        setSubscription(subData.subscription);
+      }
+      setPageLoading(false);
+    }).catch(() => setPageLoading(false));
+  }, []);
+
+  const planId = (subscription?.plan || "FREE").toUpperCase();
+  const maxAllowedPets = planId === "PRO" ? 999 : planId === "PLUS" ? 5 : 1;
+  const isLimitReached = currentPetCount >= maxAllowedPets;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLimitReached) {
+      setError(`Your ${planId === "FREE" ? "Basic ID" : "Plus Recovery"} plan allows a maximum of ${maxAllowedPets} pet(s). Upgrade your plan to add more.`);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -50,7 +78,7 @@ export default function NewPetPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to create pet profile");
+        throw new Error(data.message || data.error || "Failed to create pet profile");
       }
 
       // Automatically generate & connect a new Tag for this pet
@@ -79,13 +107,45 @@ export default function NewPetPage() {
         <span>Back to Pets</span>
       </Link>
 
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Pet Profile</h1>
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+        <div>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Pet Profile</h1>
+            <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
+              isLimitReached
+                ? "bg-amber-50 text-amber-800 border-amber-300"
+                : "bg-slate-100 text-slate-700 border-slate-200"
+            }`}>
+              {currentPetCount} / {maxAllowedPets === 999 ? "∞" : maxAllowedPets} Pets Registered
+            </span>
+          </div>
           <p className="text-xs text-slate-500 mt-1">
             Fill in your pet&apos;s recovery details. A unique QR collar tag will be generated automatically.
           </p>
         </div>
+
+        {isLimitReached && (
+          <div className="p-5 bg-amber-50 border-2 border-amber-300 rounded-2xl text-amber-900 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <p className="font-extrabold text-sm text-amber-950">
+                  Plan Pet Limit Reached ({currentPetCount}/{maxAllowedPets})
+                </p>
+                <p className="text-amber-800">
+                  Your <strong>{planId === "FREE" ? "Basic ID" : "Plus Recovery"} Plan</strong> allows up to <strong>{maxAllowedPets} pet profile</strong>. To add additional pets and generate new collar tags, please upgrade your membership plan.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/settings"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Upgrade Plan via Meezan Bank QR</span>
+            </Link>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Identity */}
