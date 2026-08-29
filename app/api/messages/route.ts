@@ -38,8 +38,9 @@ export async function POST(req: NextRequest) {
     }
 
     let senderType: "FINDER" | "OWNER" = "FINDER";
+    const ownerUserId = conversation.pet?.user?.id || conversation.pet?.userId;
 
-    if (session && session.id === conversation.pet.user.id) {
+    if (session && (session.id === ownerUserId || session.id === conversation.pet?.userId)) {
       senderType = "OWNER";
     } else {
       // Validate finderToken
@@ -98,20 +99,22 @@ export async function POST(req: NextRequest) {
         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
       const dashboardUrl = `${appUrl}/dashboard/messages?conv=${conversation.id}`;
 
-      await enqueueNotificationJob(
-        conversation.pet.user.id,
-        "MESSAGE_ALERT",
-        {
-          userId: conversation.pet.user.id,
-          petId: conversation.petId,
-          petName: conversation.pet.name,
-          type: "MESSAGE_ALERT",
-          title: `💬 New Message from Finder of ${conversation.pet.name}`,
-          body: `"${validated.content.substring(0, 120)}"`,
-          dashboardUrl,
-        },
-        `MSG_ALERT:${message.id}`
-      );
+      if (ownerUserId) {
+        await enqueueNotificationJob(
+          ownerUserId,
+          "MESSAGE_ALERT",
+          {
+            userId: ownerUserId,
+            petId: conversation.petId,
+            petName: conversation.pet?.name || "Pet",
+            type: "MESSAGE_ALERT",
+            title: `💬 New Message from Finder of ${conversation.pet?.name || "your pet"}`,
+            body: `"${validated.content.substring(0, 120)}"`,
+            dashboardUrl,
+          },
+          `MSG_ALERT:${message.id}`
+        );
+      }
 
       processNotificationQueue(5).catch((err) =>
         console.error("[Queue Worker Async Error on Message]", err)

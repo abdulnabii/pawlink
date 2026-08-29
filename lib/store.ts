@@ -513,10 +513,12 @@ export class ResilientDataStore {
       pet: pet
         ? {
             id: pet.id,
+            userId: pet.userId,
             name: pet.name,
             photoUrl: pet.photoUrl,
             species: pet.species,
             status: pet.status,
+            user: { id: pet.userId, name: "Pet Owner", phone: pet.contactPhone || null },
           }
         : null,
       messages: uniqueMsgs,
