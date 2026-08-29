@@ -158,10 +158,20 @@ function createSelfHealingDb() {
         return null;
       },
       updateMany: async (args: any) => {
-        return { count: 1 };
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.tagAssignment.updateMany(args);
+          } catch {}
+        }
+        return resilientStore.updateManyTagAssignments(args);
       },
       create: async (args: any) => {
-        return { id: `asgn_${Date.now()}`, ...args.data };
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.tagAssignment.create(args);
+          } catch {}
+        }
+        return resilientStore.createTagAssignment(args);
       },
     },
     recoveryCase: {
@@ -288,6 +298,24 @@ function createSelfHealingDb() {
       },
       findMany: async (args: any) => {
         return [];
+      },
+    },
+    notificationPreference: {
+      upsert: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notificationPreference.upsert(args);
+          } catch {}
+        }
+        return resilientStore.upsertNotificationPreference(args);
+      },
+      findUnique: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notificationPreference.findUnique(args);
+          } catch {}
+        }
+        return resilientStore.findNotificationPreferenceUnique(args);
       },
     },
     auditLog: {

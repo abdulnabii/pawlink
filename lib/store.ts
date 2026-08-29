@@ -434,6 +434,62 @@ export class ResilientDataStore {
     };
   }
 
+  // --- TAG ASSIGNMENT METHODS ---
+  async createTagAssignment(args: any) {
+    const asgn = {
+      id: `asgn_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      assignedAt: new Date(),
+      unassignedAt: null,
+    };
+    this.tagAssignments.push(asgn);
+    return asgn;
+  }
+
+  async updateManyTagAssignments(args: any) {
+    let count = 0;
+    for (const asgn of this.tagAssignments) {
+      let match = true;
+      if (args.where?.tagId && asgn.tagId !== args.where.tagId) match = false;
+      if (args.where?.petId && asgn.petId !== args.where.petId) match = false;
+      if (args.where?.unassignedAt === null && asgn.unassignedAt !== null) match = false;
+      if (match) {
+        Object.assign(asgn, args.data);
+        count++;
+      }
+    }
+    return { count };
+  }
+
+  // --- NOTIFICATION PREFERENCE METHODS ---
+  async upsertNotificationPreference(args: any) {
+    const userId = args.where?.userId;
+    const user = this.users.find((u) => u.id === userId);
+    const data = args.update || args.create || {};
+    const pref = {
+      id: `pref_${userId}`,
+      userId,
+      whatsappEnabled: data.whatsappEnabled ?? true,
+      whatsappVerified: data.whatsappVerified ?? true,
+      emailEnabled: data.emailEnabled ?? true,
+      notificationPhone: data.notificationPhone || null,
+      updatedAt: new Date(),
+    };
+
+    if (user) {
+      user.notificationPreference = pref;
+      if (data.notificationPhone) {
+        user.phone = data.notificationPhone;
+      }
+    }
+    return pref;
+  }
+
+  async findNotificationPreferenceUnique(args: any) {
+    const user = this.users.find((u) => u.id === args.where?.userId);
+    return user?.notificationPreference || null;
+  }
+
   // --- RECOVERY / TIMELINE ---
   async createRecoveryEvent(args: any) {
     const ev = {
