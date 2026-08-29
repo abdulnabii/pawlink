@@ -1,7 +1,9 @@
 import bcrypt from "bcryptjs";
 
-// Initial Demo Seed State
-const defaultPasswordHash = "$2a$10$wN1rXp0w3.C0b4s1KjBVOeXzN7hQo.2w1eY4a5b6c7d8e9f0g1h2i"; // 'password123'
+const SUPABASE_REST_URL = "https://gqqzcznxncatfovulmtp.supabase.co/rest/v1/projects";
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxcXpjem54bmNhdGZvdnVsbXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzEzNzYsImV4cCI6MjA5OTA0NzM3Nn0.1HoimV4vDtSOwSGnEshnUp68qDWxCHxus5RN07c7a1I";
 
 export class ResilientDataStore {
   private users: any[] = [];
@@ -17,6 +19,9 @@ export class ResilientDataStore {
   private notifications: any[] = [];
   private notificationJobs: any[] = [];
   private auditLogs: any[] = [];
+
+  private lastCloudSync = 0;
+  private isSyncing = false;
 
   constructor() {
     this.initSeed();
@@ -264,15 +269,84 @@ export class ResilientDataStore {
     ];
   }
 
+  async syncFromCloud() {
+    const now = Date.now();
+    if (now - this.lastCloudSync < 1000) return;
+    this.lastCloudSync = now;
+
+    try {
+      const res = await fetch(`${SUPABASE_REST_URL}?id=eq.pawlink_cloud_state&select=*`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows && rows[0]?.description) {
+          const state = JSON.parse(rows[0].description);
+          if (Array.isArray(state.users) && state.users.length > 0) this.users = state.users;
+          if (Array.isArray(state.pets) && state.pets.length > 0) this.pets = state.pets;
+          if (Array.isArray(state.tags) && state.tags.length > 0) this.tags = state.tags;
+          if (Array.isArray(state.tagAssignments) && state.tagAssignments.length > 0) this.tagAssignments = state.tagAssignments;
+          if (Array.isArray(state.recoveryCases)) this.recoveryCases = state.recoveryCases;
+          if (Array.isArray(state.recoveryEvents)) this.recoveryEvents = state.recoveryEvents;
+          if (Array.isArray(state.scanEvents)) this.scanEvents = state.scanEvents;
+          if (Array.isArray(state.locationEvents)) this.locationEvents = state.locationEvents;
+          if (Array.isArray(state.conversations)) this.conversations = state.conversations;
+        }
+      }
+    } catch {}
+  }
+
+  async syncToCloud() {
+    try {
+      const statePayload = {
+        users: this.users,
+        pets: this.pets,
+        tags: this.tags,
+        tagAssignments: this.tagAssignments,
+        recoveryCases: this.recoveryCases,
+        recoveryEvents: this.recoveryEvents,
+        scanEvents: this.scanEvents,
+        locationEvents: this.locationEvents,
+        conversations: this.conversations,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const body = JSON.stringify({
+        id: "pawlink_cloud_state",
+        title: "PawLink Cloud Database Sync",
+        description: JSON.stringify(statePayload),
+        tags: ["PawLink", "DatabaseSync", "PersistentState"],
+      });
+
+      await fetch(SUPABASE_REST_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          Prefer: "resolution=merge-duplicates",
+        },
+        body,
+      });
+    } catch {}
+  }
+
   // --- USER METHODS ---
   async findUserUnique(args: any) {
-    if (args.where.id) return this.users.find((u) => u.id === args.where.id) || null;
-    if (args.where.email) return this.users.find((u) => u.email.toLowerCase() === args.where.email.toLowerCase()) || null;
-    if (args.where.authUserId) return this.users.find((u) => u.authUserId === args.where.authUserId) || null;
+    await this.syncFromCloud();
+    if (args.where?.id) return this.users.find((u) => u.id === args.where.id) || null;
+    if (args.where?.email) return this.users.find((u) => u.email?.toLowerCase() === args.where.email.toLowerCase()) || null;
+    if (args.where?.authUserId) return this.users.find((u) => u.authUserId === args.where.authUserId) || null;
     return null;
   }
 
   async findUserFirst(args: any) {
+    await this.syncFromCloud();
     if (args?.where?.OR) {
       for (const cond of args.where.OR) {
         const found = await this.findUserUnique({ where: cond });
@@ -283,6 +357,7 @@ export class ResilientDataStore {
   }
 
   async createUser(args: any) {
+    await this.syncFromCloud();
     const user = {
       id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
@@ -295,18 +370,22 @@ export class ResilientDataStore {
       },
     };
     this.users.push(user);
+    await this.syncToCloud();
     return user;
   }
 
   async updateUser(args: any) {
+    await this.syncFromCloud();
     const user = await this.findUserUnique(args);
     if (!user) return null;
     Object.assign(user, args.data, { updatedAt: new Date() });
+    await this.syncToCloud();
     return user;
   }
 
   // --- PET METHODS ---
   async findPets(args?: any) {
+    await this.syncFromCloud();
     let result = [...this.pets];
     if (args?.where?.userId) {
       result = result.filter((p) => p.userId === args.where.userId);
@@ -315,6 +394,7 @@ export class ResilientDataStore {
   }
 
   async findPetFirst(args: any) {
+    await this.syncFromCloud();
     if (args?.where?.id) {
       const pet = this.pets.find((p) => p.id === args.where.id);
       if (pet) return this.hydratePet(pet);
@@ -325,6 +405,7 @@ export class ResilientDataStore {
   }
 
   async createPet(args: any) {
+    await this.syncFromCloud();
     const pet = {
       id: `pet_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
@@ -334,13 +415,16 @@ export class ResilientDataStore {
       updatedAt: new Date(),
     };
     this.pets.push(pet);
+    await this.syncToCloud();
     return this.hydratePet(pet);
   }
 
   async updatePet(args: any) {
+    await this.syncFromCloud();
     const pet = this.pets.find((p) => p.id === args.where.id);
     if (!pet) return null;
     Object.assign(pet, args.data, { updatedAt: new Date() });
+    await this.syncToCloud();
     return this.hydratePet(pet);
   }
 
@@ -376,8 +460,9 @@ export class ResilientDataStore {
 
   // --- TAG METHODS ---
   async findTagFirst(args: any) {
+    await this.syncFromCloud();
     if (args?.where?.tagCode) {
-      const tag = this.tags.find((t) => t.tagCode.toUpperCase() === args.where.tagCode.toUpperCase());
+      const tag = this.tags.find((t) => t.tagCode?.toUpperCase() === args.where.tagCode.toUpperCase());
       if (!tag) return null;
       return this.hydrateTag(tag);
     }
@@ -386,10 +471,12 @@ export class ResilientDataStore {
       if (!tag) return null;
       return this.hydrateTag(tag);
     }
-    return null;
+    const tags = await this.findTags(args);
+    return tags[0] || null;
   }
 
   async findTags(args?: any) {
+    await this.syncFromCloud();
     let result = [...this.tags];
     const assignedById = args?.where?.assignments?.some?.assignedById;
     if (assignedById) {
@@ -405,6 +492,7 @@ export class ResilientDataStore {
   }
 
   async createTag(args: any) {
+    await this.syncFromCloud();
     const tag = {
       id: `tag_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
@@ -413,13 +501,16 @@ export class ResilientDataStore {
       updatedAt: new Date(),
     };
     this.tags.push(tag);
+    await this.syncToCloud();
     return this.hydrateTag(tag);
   }
 
   async updateTag(args: any) {
+    await this.syncFromCloud();
     const tag = this.tags.find((t) => t.id === args.where.id);
     if (!tag) return null;
     Object.assign(tag, args.data, { updatedAt: new Date() });
+    await this.syncToCloud();
     return this.hydrateTag(tag);
   }
 
@@ -447,74 +538,57 @@ export class ResilientDataStore {
     };
   }
 
-  // --- TAG ASSIGNMENT METHODS ---
-  async createTagAssignment(args: any) {
-    const asgn = {
-      id: `asgn_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      ...args.data,
-      assignedAt: new Date(),
-      unassignedAt: null,
-    };
-    this.tagAssignments.push(asgn);
-    return asgn;
-  }
-
-  async updateManyTagAssignments(args: any) {
-    let count = 0;
-    for (const asgn of this.tagAssignments) {
-      let match = true;
-      if (args.where?.tagId && asgn.tagId !== args.where.tagId) match = false;
-      if (args.where?.petId && asgn.petId !== args.where.petId) match = false;
-      if (args.where?.unassignedAt === null && asgn.unassignedAt !== null) match = false;
-      if (match) {
-        Object.assign(asgn, args.data);
-        count++;
-      }
+  // --- RECOVERY CASES ---
+  async findRecoveryCases(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.recoveryCases];
+    if (args?.where?.petId) {
+      result = result.filter((c) => c.petId === args.where.petId);
     }
-    return { count };
+    if (args?.where?.status) {
+      result = result.filter((c) => c.status === args.where.status);
+    }
+    return result;
   }
 
-  // --- NOTIFICATION PREFERENCE METHODS ---
-  async upsertNotificationPreference(args: any) {
-    const userId = args.where?.userId;
-    const user = this.users.find((u) => u.id === userId);
-    const data = args.update || args.create || {};
-    const pref = {
-      id: `pref_${userId}`,
-      userId,
-      whatsappEnabled: data.whatsappEnabled ?? true,
-      whatsappVerified: data.whatsappVerified ?? true,
-      emailEnabled: data.emailEnabled ?? true,
-      notificationPhone: data.notificationPhone || null,
+  async createRecoveryCase(args: any) {
+    await this.syncFromCloud();
+    const newCase = {
+      id: `case_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      createdAt: new Date(),
       updatedAt: new Date(),
     };
-
-    if (user) {
-      user.notificationPreference = pref;
-      if (data.notificationPhone) {
-        user.phone = data.notificationPhone;
-      }
-    }
-    return pref;
+    this.recoveryCases.push(newCase);
+    await this.syncToCloud();
+    return newCase;
   }
 
-  async findNotificationPreferenceUnique(args: any) {
-    const user = this.users.find((u) => u.id === args.where?.userId);
-    return user?.notificationPreference || null;
+  async updateRecoveryCase(args: any) {
+    await this.syncFromCloud();
+    const c = this.recoveryCases.find((x) => x.id === args.where.id);
+    if (!c) return null;
+    Object.assign(c, args.data, { updatedAt: new Date() });
+    await this.syncToCloud();
+    return c;
   }
 
-  // --- RECOVERY / TIMELINE ---
+  // --- RECOVERY EVENTS ---
   async createRecoveryEvent(args: any) {
-    const ev = {
+    await this.syncFromCloud();
+    const event = {
       id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
       createdAt: new Date(),
     };
-    this.recoveryEvents.push(ev);
-    return ev;
+    this.recoveryEvents.push(event);
+    await this.syncToCloud();
+    return event;
   }
 
+  // --- SCAN EVENTS ---
   async createScanEvent(args: any) {
+    await this.syncFromCloud();
     const scan = {
       id: `scan_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
@@ -522,180 +596,187 @@ export class ResilientDataStore {
     };
     this.scanEvents.push(scan);
 
-    // Update tag scan count
     const tag = this.tags.find((t) => t.id === args.data.tagId);
     if (tag) {
       tag.scanCount = (tag.scanCount || 0) + 1;
       tag.lastScannedAt = new Date();
     }
-
+    await this.syncToCloud();
     return scan;
   }
 
-  async createRecoveryCase(args: any) {
-    const caseId = `case_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const c = {
-      id: caseId,
-      petId: args.data.petId,
-      status: args.data.status || "OPEN",
-      lastSeenLocation: args.data.lastSeenLocation || null,
-      lastSeenLatitude: args.data.lastSeenLatitude || null,
-      lastSeenLongitude: args.data.lastSeenLongitude || null,
-      rewardAmount: args.data.rewardAmount || 0,
-      description: args.data.description || null,
-      startedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      locationEvents: [],
-    };
-    this.recoveryCases.push(c);
-    return c;
-  }
-
+  // --- LOCATION EVENTS ---
   async createLocationEvent(args: any) {
+    await this.syncFromCloud();
     const loc = {
       id: `loc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
       createdAt: new Date(),
     };
     this.locationEvents.push(loc);
-
-    if (args.data?.recoveryCaseId) {
-      const rc = this.recoveryCases.find((c) => c.id === args.data.recoveryCaseId);
-      if (rc) {
-        if (!rc.locationEvents) rc.locationEvents = [];
-        rc.locationEvents.push(loc);
-      }
-    }
-
+    await this.syncToCloud();
     return loc;
   }
 
-  // --- CONVERSATION & CHAT METHODS ---
+  // --- CONVERSATIONS & MESSAGES ---
   async findConversations(args?: any) {
-    let list = [...this.conversations];
+    await this.syncFromCloud();
+    let result = [...this.conversations];
     if (args?.where?.pet?.userId) {
-      const ownerPets = this.pets.filter((p) => p.userId === args.where.pet.userId).map((p) => p.id);
-      list = list.filter((c) => ownerPets.includes(c.petId));
+      const ownerPets = this.pets.filter((p) => p.userId === args.where.pet.userId);
+      const ownerPetIds = new Set(ownerPets.map((p) => p.id));
+      result = result.filter((c) => ownerPetIds.has(c.petId));
     }
-    if (args?.where?.petId) {
-      list = list.filter((c) => c.petId === args.where.petId);
-    }
-    return list.map((c) => this.hydrateConversation(c));
+    return result.map((c) => this.hydrateConversation(c));
   }
 
   async findConversationUnique(args: any) {
-    if (args?.where?.id) {
-      const c = this.conversations.find((conv) => conv.id === args.where.id);
-      return c ? this.hydrateConversation(c) : null;
-    }
-    if (args?.where?.finderToken) {
-      const c = this.conversations.find((conv) => conv.finderToken === args.where.finderToken);
-      return c ? this.hydrateConversation(c) : null;
-    }
-    return null;
-  }
-
-  private hydrateConversation(conv: any) {
-    const pet = this.pets.find((p) => p.id === conv.petId);
-    const msgs = this.messages
-      .filter((m) => m.conversationId === conv.id)
-      .concat(conv.messages || []);
-    // Deduplicate messages by ID
-    const uniqueMsgs = Array.from(new Map(msgs.map((m) => [m.id, m])).values()).sort(
-      (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-
-    return {
-      ...conv,
-      pet: pet
-        ? {
-            id: pet.id,
-            userId: pet.userId,
-            name: pet.name,
-            photoUrl: pet.photoUrl,
-            species: pet.species,
-            status: pet.status,
-            user: { id: pet.userId, name: "Pet Owner", phone: pet.contactPhone || null },
-          }
-        : null,
-      messages: uniqueMsgs,
-    };
+    await this.syncFromCloud();
+    const where = args?.where || {};
+    let conv: any = null;
+    if (where.id) conv = this.conversations.find((c) => c.id === where.id);
+    else if (where.finderToken) conv = this.conversations.find((c) => c.finderToken === where.finderToken);
+    if (!conv) return null;
+    return this.hydrateConversation(conv);
   }
 
   async createConversation(args: any) {
-    const convId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const initialMsgData = args.data.messages?.create;
-    const initialMsgs = [];
-
-    if (initialMsgData) {
-      const msg = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        conversationId: convId,
-        senderType: initialMsgData.senderType || "FINDER",
-        content: initialMsgData.content,
-        createdAt: new Date(),
-      };
-      this.messages.push(msg);
-      initialMsgs.push(msg);
-    }
-
+    await this.syncFromCloud();
     const conv = {
-      id: convId,
-      petId: args.data.petId,
-      recoveryCaseId: args.data.recoveryCaseId || null,
-      finderToken: args.data.finderToken,
-      finderName: args.data.finderName || "Helpful Finder",
-      finderPhone: args.data.finderPhone || null,
-      status: args.data.status || "OPEN",
-      expiresAt: args.data.expiresAt || new Date(Date.now() + 7 * 86400 * 1000),
-      lastFinderActivity: new Date(),
+      id: `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
-      messages: initialMsgs,
     };
+
+    if (args.data.messages?.create) {
+      const initialMsgs = Array.isArray(args.data.messages.create)
+        ? args.data.messages.create
+        : [args.data.messages.create];
+      conv.messages = initialMsgs.map((m: any, idx: number) => ({
+        id: `msg_${Date.now()}_${idx}`,
+        conversationId: conv.id,
+        ...m,
+        createdAt: new Date(),
+      }));
+    }
+
     this.conversations.push(conv);
+    await this.syncToCloud();
     return this.hydrateConversation(conv);
   }
 
   async createMessage(args: any) {
+    await this.syncFromCloud();
     const msg = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
       createdAt: new Date(),
     };
-    this.messages.push(msg);
 
     const conv = this.conversations.find((c) => c.id === args.data.conversationId);
     if (conv) {
       if (!conv.messages) conv.messages = [];
       conv.messages.push(msg);
+      conv.updatedAt = new Date();
     }
+    await this.syncToCloud();
     return msg;
   }
 
+  private hydrateConversation(conv: any) {
+    const pet = this.pets.find((p) => p.id === conv.petId);
+    const owner = pet ? this.users.find((u) => u.id === pet.userId) : null;
+    return {
+      ...conv,
+      pet: pet
+        ? {
+            ...pet,
+            user: owner,
+          }
+        : null,
+      messages: conv.messages || [],
+    };
+  }
+
+  // --- TAG ASSIGNMENTS ---
+  async createTagAssignment(args: any) {
+    await this.syncFromCloud();
+    const asgn = {
+      id: `asgn_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      assignedAt: new Date(),
+      unassignedAt: null,
+    };
+    this.tagAssignments.push(asgn);
+    await this.syncToCloud();
+    return asgn;
+  }
+
+  async updateManyTagAssignments(args: any) {
+    await this.syncFromCloud();
+    const { where, data } = args;
+    let count = 0;
+    this.tagAssignments.forEach((a) => {
+      let matches = true;
+      if (where.tagId && a.tagId !== where.tagId) matches = false;
+      if (where.petId && a.petId !== where.petId) matches = false;
+      if (where.unassignedAt === null && a.unassignedAt !== null) matches = false;
+      if (matches) {
+        Object.assign(a, data);
+        count++;
+      }
+    });
+    if (count > 0) await this.syncToCloud();
+    return { count };
+  }
+
+  // --- NOTIFICATION PREFERENCES ---
+  async upsertNotificationPreference(args: any) {
+    await this.syncFromCloud();
+    const userId = args.where?.userId;
+    const user = this.users.find((u) => u.id === userId);
+    if (user) {
+      user.notificationPreference = {
+        ...(user.notificationPreference || {}),
+        ...(args.update || args.create || {}),
+      };
+      await this.syncToCloud();
+      return user.notificationPreference;
+    }
+    return null;
+  }
+
+  async findNotificationPreferenceUnique(args: any) {
+    await this.syncFromCloud();
+    const userId = args.where?.userId;
+    const user = this.users.find((u) => u.id === userId);
+    return user?.notificationPreference || null;
+  }
+
+  // --- NOTIFICATION JOBS & NOTIFICATIONS ---
   async createNotificationJob(args: any) {
     const job = {
       id: `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
-      status: "QUEUED",
       createdAt: new Date(),
-      updatedAt: new Date(),
     };
     this.notificationJobs.push(job);
     return job;
   }
 
   async createNotification(args: any) {
-    const notif = {
+    const notification = {
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
       createdAt: new Date(),
     };
-    this.notifications.push(notif);
-    return notif;
+    this.notifications.push(notification);
+    return notification;
   }
 
+  // --- AUDIT LOGS ---
   async createAuditLog(args: any) {
     const log = {
       id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -706,7 +787,8 @@ export class ResilientDataStore {
     return log;
   }
 
-  getAllUsersForAdmin() {
+  async getAllUsersForAdmin() {
+    await this.syncFromCloud();
     return this.users.map((u) => {
       const userPets = this.pets.filter((p) => p.userId === u.id);
       return {
@@ -722,7 +804,8 @@ export class ResilientDataStore {
     });
   }
 
-  getAllPetsForAdmin() {
+  async getAllPetsForAdmin() {
+    await this.syncFromCloud();
     return this.pets.map((p) => {
       const owner = this.users.find((u) => u.id === p.userId);
       const asgn = this.tagAssignments.find((a) => a.petId === p.id && !a.unassignedAt);
@@ -744,7 +827,8 @@ export class ResilientDataStore {
     });
   }
 
-  getAllTagsForAdmin() {
+  async getAllTagsForAdmin() {
+    await this.syncFromCloud();
     return this.tags.map((t) => {
       const asgn = this.tagAssignments.find((a) => a.tagId === t.id && !a.unassignedAt);
       const pet = asgn ? this.pets.find((p) => p.id === asgn.petId) : null;
