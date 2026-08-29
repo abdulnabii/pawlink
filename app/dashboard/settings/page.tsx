@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   MessageSquare,
   Mail,
@@ -26,6 +27,17 @@ import {
 import { BANK_PAYMENT_CONFIG } from "@/lib/plans";
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-slate-400 text-sm">Loading Settings...</div>}>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
+  const searchParams = useSearchParams();
+  const upgradeParam = searchParams.get("upgrade")?.toUpperCase();
+
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -80,6 +92,12 @@ export default function SettingsPage() {
         }
         if (Array.isArray(subData?.plans)) {
           setPlans(subData.plans);
+          if (upgradeParam && (upgradeParam === "PLUS" || upgradeParam === "PRO")) {
+            const target = subData.plans.find((p: any) => p.id === upgradeParam);
+            if (target) {
+              setSelectedPlanForPayment(target);
+            }
+          }
         }
         if (Array.isArray(reqData?.requests)) {
           setUserRequests(reqData.requests);

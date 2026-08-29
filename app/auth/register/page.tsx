@@ -35,7 +35,11 @@ function RegisterForm() {
         throw new Error(data.error || "Registration failed");
       }
 
-      router.push("/dashboard/pets/new");
+      if (plan === "PLUS" || plan === "PRO") {
+        router.push(`/dashboard/settings?upgrade=${plan}`);
+      } else {
+        router.push("/dashboard/pets/new");
+      }
       router.refresh();
     } catch (err: any) {
       setError(err.message || "An error occurred during account creation");

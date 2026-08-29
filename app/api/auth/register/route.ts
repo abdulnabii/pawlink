@@ -77,22 +77,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 3. Create initial Subscription
-    const selectedPlan = (body.plan || "FREE").toUpperCase();
-    const validPlan = ["FREE", "PLUS", "PRO"].includes(selectedPlan) ? selectedPlan : "FREE";
-
+    // 3. Create initial Subscription (All accounts start on FREE Basic ID until payment verified)
     await db.subscription.create({
       data: {
         userId: user.id,
-        plan: validPlan,
+        plan: "FREE",
         status: "ACTIVE",
-        currentPeriodEnd: validPlan === "FREE" ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        currentPeriodEnd: null,
       },
     });
 
     await setSessionCookie(user);
 
-    return NextResponse.json({ success: true, user });
+    return NextResponse.json({ success: true, user, initialPlan: "FREE" });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Registration failed";
     return NextResponse.json({ error: message }, { status: 400 });
