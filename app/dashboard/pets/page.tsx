@@ -32,6 +32,8 @@ export default function PetsListPage() {
 
   if (!mounted) return null;
 
+  const safePets = Array.isArray(pets) ? pets : [];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -52,7 +54,7 @@ export default function PetsListPage() {
 
       {loading ? (
         <div className="p-12 text-center text-slate-400 text-sm">Loading pets...</div>
-      ) : pets.length === 0 ? (
+      ) : safePets.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center">
           <Dog className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800">No pets added yet</h3>
@@ -69,9 +71,11 @@ export default function PetsListPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pets.map((pet) => {
-            const isLost = pet.status === "LOST" || pet.recoveryCases?.length > 0;
+          {safePets.map((pet) => {
+            if (!pet) return null;
+            const isLost = pet.status === "LOST" || (Array.isArray(pet.recoveryCases) && pet.recoveryCases.length > 0);
             const activeTag = pet.tagAssignments?.[0]?.tag;
+            const speciesLower = (pet.species || "").toLowerCase();
 
             return (
               <div
@@ -85,16 +89,21 @@ export default function PetsListPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 p-0.5 border border-slate-200 shrink-0">
                         {pet.photoUrl ? (
-                          <img src={pet.photoUrl} alt={pet.name} className="w-full h-full object-cover rounded-xl" />
+                          <img
+                            src={pet.photoUrl}
+                            alt={pet.name || "Pet"}
+                            className="w-full h-full object-cover rounded-xl"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-2xl">
-                            {pet.species.toLowerCase() === "cat" ? "🐈" : "🐕"}
+                            {speciesLower === "cat" ? "🐈" : "🐕"}
                           </div>
                         )}
                       </div>
                       <div>
-                        <h3 className="font-extrabold text-base text-slate-900">{pet.name}</h3>
-                        <p className="text-xs text-slate-500">{pet.breed || pet.species}</p>
+                        <h3 className="font-extrabold text-base text-slate-900">{pet.name || "Pet"}</h3>
+                        <p className="text-xs text-slate-500">{pet.breed || pet.species || "Animal"}</p>
                       </div>
                     </div>
 
@@ -111,13 +120,15 @@ export default function PetsListPage() {
                     <div className="flex items-center justify-between text-slate-600">
                       <span>Tag Identifier:</span>
                       <span className="font-mono font-bold text-slate-800">
-                        {activeTag ? activeTag.tagCode : "Unassigned"}
+                        {activeTag?.tagCode || "Unassigned"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-slate-600">
                       <span>Medical Alerts:</span>
                       <span className="font-bold text-slate-800">
-                        {pet.medicalRecords?.filter((m: any) => m.isPublicAlert).length || 0} active
+                        {Array.isArray(pet.medicalRecords)
+                          ? pet.medicalRecords.filter((m: any) => m?.isPublicAlert).length
+                          : 0} active
                       </span>
                     </div>
                   </div>

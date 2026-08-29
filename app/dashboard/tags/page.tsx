@@ -53,7 +53,7 @@ export default function TagsManagerPage() {
   if (!mounted) return null;
 
   const handleTestTag = async (tag: any) => {
-    setTestingTagId(tag.id);
+    setTestingTagId(tag?.id);
     setTestResult(null);
 
     try {
@@ -99,11 +99,14 @@ export default function TagsManagerPage() {
     }
   };
 
+  const safeTags = Array.isArray(tags) ? tags : [];
+  const safePets = Array.isArray(pets) ? pets : [];
+
   return (
     <div className="space-y-6 animate-fadeIn">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Collar Tags & Badges</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Collar Tags &amp; Badges</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Manage unique high-entropy QR tags, download printable collar badges, and test notifications.
           </p>
@@ -137,7 +140,7 @@ export default function TagsManagerPage() {
 
       {loading ? (
         <div className="p-12 text-center text-slate-400 text-sm">Loading collar tags...</div>
-      ) : tags.length === 0 ? (
+      ) : safeTags.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center">
           <QrCode className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800">No tags generated yet</h3>
@@ -154,9 +157,14 @@ export default function TagsManagerPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {tags.map((tag) => {
-            const activeAssignment = tag.assignments?.find((a: any) => !a.unassignedAt);
-            const pet = activeAssignment?.pet;
+          {safeTags.map((tag) => {
+            if (!tag) return null;
+            // API returns 'assignments' (Prisma relation name), not 'tagAssignments'
+            const assignmentsArr = Array.isArray(tag.assignments) ? tag.assignments : [];
+            const activeAssignment = assignmentsArr.find((a: any) => a && !a.unassignedAt);
+            const pet = activeAssignment?.pet || null;
+            // API returns _count.scanEvents not scanCount
+            const scanCount = tag.scanCount ?? tag._count?.scanEvents ?? 0;
 
             return (
               <div key={tag.id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
@@ -173,7 +181,7 @@ export default function TagsManagerPage() {
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : "bg-red-50 text-red-700 border-red-200"
                         }`}>
-                          {tag.status}
+                          {tag.status || "UNKNOWN"}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -182,7 +190,7 @@ export default function TagsManagerPage() {
                         ) : (
                           <span className="text-amber-600 font-semibold">Unassigned Spare Tag</span>
                         )}
-                        {" • "}Total Scans: <strong>{tag.scanCount}</strong>
+                        {" • "}Total Scans: <strong>{scanCount}</strong>
                       </p>
                     </div>
                   </div>
@@ -216,8 +224,8 @@ export default function TagsManagerPage() {
                   </div>
                 </div>
 
-                {/* Printable Vector Badge */}
-                {pet && (
+                {/* Printable Vector Badge — only render when pet AND tagCode are present */}
+                {pet && tag.tagCode && pet.name && pet.species ? (
                   <div className="pt-6">
                     <PrintableTagBadge
                       tagCode={tag.tagCode}
@@ -225,7 +233,7 @@ export default function TagsManagerPage() {
                       species={pet.species}
                     />
                   </div>
-                )}
+                ) : null}
               </div>
             );
           })}
@@ -252,7 +260,7 @@ export default function TagsManagerPage() {
                   className="w-full text-xs rounded-xl border border-slate-300 p-2.5 bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
                 >
                   <option value="">-- Leave as Unassigned Spare --</option>
-                  {pets.map((p) => (
+                  {safePets.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} ({p.species})
                     </option>

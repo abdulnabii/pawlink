@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { QrCode, Download, Printer, ShieldCheck, Sparkles } from "lucide-react";
-import { generateQrDataUrl, generateQrSvg, getTagRecoveryUrl } from "@/lib/qr";
+import { getTagRecoveryUrl } from "@/lib/qr";
 
 interface PrintableTagBadgeProps {
   tagCode: string;
@@ -11,35 +11,30 @@ interface PrintableTagBadgeProps {
 }
 
 export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBadgeProps) {
-  const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(getTagRecoveryUrl(tagCode))}`;
-  const [qrDataUrl, setQrDataUrl] = useState<string>(fallbackUrl);
-
-  useEffect(() => {
-    let active = true;
-    if (tagCode) {
-      generateQrDataUrl(tagCode)
-        .then((url) => {
-          if (active && url) setQrDataUrl(url);
-        })
-        .catch(() => {});
-    }
-    return () => {
-      active = false;
-    };
-  }, [tagCode]);
+  const safeTag = tagCode || "";
+  const safePet = petName || "Pet";
+  const qrUrl = safeTag
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=512x512&ecc=H&data=${encodeURIComponent(getTagRecoveryUrl(safeTag))}`
+    : "";
 
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch {}
   };
 
   const handleDownloadPng = () => {
-    if (!qrDataUrl) return;
-    const link = document.createElement("a");
-    link.href = qrDataUrl;
-    link.download = `PawLink-${petName}-${tagCode}.png`;
-    link.target = "_blank";
-    link.click();
+    if (!qrUrl) return;
+    try {
+      const link = document.createElement("a");
+      link.href = qrUrl;
+      link.download = `PawLink-${safePet}-${safeTag}.png`;
+      link.target = "_blank";
+      link.click();
+    } catch {}
   };
+
+  if (!safeTag) return null;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
@@ -47,10 +42,10 @@ export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBad
         <div>
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <QrCode className="w-5 h-5 text-teal-600" />
-            <span>Collar Tag Badge & Print Template</span>
+            <span>Collar Tag Badge &amp; Print Template</span>
           </h3>
           <p className="text-xs text-slate-500">
-            Attach this durable QR tag to {petName}&apos;s collar or carry a copy.
+            Attach this durable QR tag to {safePet}&apos;s collar or carry a copy.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -82,16 +77,21 @@ export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBad
           </div>
 
           <div className="w-28 h-28 p-1 bg-white rounded-xl border border-slate-200 shadow-inner flex items-center justify-center">
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt={`QR Code for ${petName}`} className="w-full h-full object-contain" />
+            {qrUrl ? (
+              <img
+                src={qrUrl}
+                alt={`QR Code for ${safePet}`}
+                className="w-full h-full object-contain"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
             ) : (
               <div className="w-full h-full animate-pulse bg-slate-200 rounded" />
             )}
           </div>
 
           <div>
-            <p className="font-extrabold text-sm text-slate-900 uppercase tracking-tight">{petName}</p>
-            <p className="text-[10px] font-mono text-slate-500 font-semibold">{tagCode}</p>
+            <p className="font-extrabold text-sm text-slate-900 uppercase tracking-tight">{safePet}</p>
+            <p className="text-[10px] font-mono text-slate-500 font-semibold">{safeTag}</p>
             <p className="text-[9px] text-teal-600 font-bold uppercase tracking-wider mt-0.5">SCAN IF LOST</p>
           </div>
         </div>
@@ -105,7 +105,7 @@ export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBad
           <ul className="text-xs text-slate-600 space-y-2">
             <li className="flex items-start gap-1.5">
               <span className="text-teal-600 font-bold">•</span>
-              <span><strong>Tag Identifier:</strong> <code className="bg-slate-200 px-1 py-0.5 rounded text-[11px] font-mono">{tagCode}</code></span>
+              <span><strong>Tag Identifier:</strong> <code className="bg-slate-200 px-1 py-0.5 rounded text-[11px] font-mono">{safeTag}</code></span>
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-teal-600 font-bold">•</span>
@@ -113,7 +113,7 @@ export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBad
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-teal-600 font-bold">•</span>
-              <span><strong>Compatible With:</strong> Any smartphone camera & NFC tags</span>
+              <span><strong>Compatible With:</strong> Any smartphone camera &amp; NFC tags</span>
             </li>
           </ul>
           <p className="text-[11px] text-slate-500 italic bg-white p-2.5 rounded-lg border border-slate-200">

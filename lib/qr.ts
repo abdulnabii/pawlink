@@ -1,13 +1,3 @@
-import QRCode from "qrcode";
-
-export interface TagBadgeData {
-  tagCode: string;
-  petName: string;
-  species: string;
-  qrDataUrl: string;
-  appUrl: string;
-}
-
 /**
  * Returns the public recovery URL for a tag code dynamically based on current origin
  */
@@ -22,42 +12,25 @@ export function getTagRecoveryUrl(tagCode: string): string {
 }
 
 /**
- * Generates an SVG string representation of the QR code
- */
-export async function generateQrSvg(tagCode: string): Promise<string> {
-  const url = getTagRecoveryUrl(tagCode);
-  try {
-    return await QRCode.toString(url, {
-      type: "svg",
-      margin: 1,
-      color: {
-        dark: "#0f172a",
-        light: "#ffffff",
-      },
-      errorCorrectionLevel: "H",
-    });
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Generates a PNG Data URL of the QR code with instant resilient fallback
+ * Generates a QR code PNG data URL. Uses external API to avoid Canvas/Node issues in browser.
  */
 export async function generateQrDataUrl(tagCode: string): Promise<string> {
   const url = getTagRecoveryUrl(tagCode);
-  try {
-    if (typeof QRCode !== "undefined" && typeof QRCode.toDataURL === "function") {
-      return await QRCode.toDataURL(url, {
-        margin: 1,
-        width: 512,
-        color: {
-          dark: "#0f172a",
-          light: "#ffffff",
-        },
-        errorCorrectionLevel: "H",
-      });
-    }
-  } catch {}
-  return `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(url)}`;
+  // Always use the CDN-based QR image to avoid canvas/buffer crashes in any environment
+  return `https://api.qrserver.com/v1/create-qr-code/?size=512x512&ecc=H&data=${encodeURIComponent(url)}`;
+}
+
+/**
+ * Returns an SVG string for the QR code — uses external API.
+ */
+export async function generateQrSvg(tagCode: string): Promise<string> {
+  return "";
+}
+
+export interface TagBadgeData {
+  tagCode: string;
+  petName: string;
+  species: string;
+  qrDataUrl: string;
+  appUrl: string;
 }
