@@ -3,7 +3,7 @@ import { resilientStore } from "./store";
 
 const isPrismaConfigured =
   Boolean(process.env.DATABASE_URL) &&
-  !process.env.DATABASE_URL?.includes("gqqzcznxncatfovulmtp") &&
+  !process.env.DATABASE_URL?.startsWith("file:") &&
   process.env.DATABASE_URL !== "";
 
 let rawPrisma: PrismaClient | null = null;
