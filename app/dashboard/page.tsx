@@ -119,8 +119,18 @@ export default function DashboardOverviewPage() {
           </div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status</p>
-            <p className={`text-sm font-black mt-0.5 ${lostPetsCount > 0 ? "text-red-600" : "text-emerald-700"}`}>
-              {lostPetsCount > 0 ? `${lostPetsCount} Pet Missing!` : "All Pets Safe"}
+            <p className={`text-sm font-black mt-0.5 ${
+              lostPetsCount > 0
+                ? "text-red-600"
+                : pets.length === 0
+                ? "text-slate-600"
+                : "text-emerald-700"
+            }`}>
+              {lostPetsCount > 0
+                ? `${lostPetsCount} Pet Missing!`
+                : pets.length === 0
+                ? "No Pets Added"
+                : "All Pets Safe"}
             </p>
           </div>
         </div>

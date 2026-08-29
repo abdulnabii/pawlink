@@ -388,7 +388,18 @@ export class ResilientDataStore {
   }
 
   async findTags(args?: any) {
-    return this.tags.map((t) => this.hydrateTag(t));
+    let result = [...this.tags];
+    const assignedById = args?.where?.assignments?.some?.assignedById;
+    if (assignedById) {
+      result = result.filter((t) => {
+        const asgn = this.tagAssignments.find((a) => a.tagId === t.id && !a.unassignedAt);
+        if (!asgn) return false;
+        if (asgn.assignedById === assignedById) return true;
+        const pet = this.pets.find((p) => p.id === asgn.petId);
+        return pet && pet.userId === assignedById;
+      });
+    }
+    return result.map((t) => this.hydrateTag(t));
   }
 
   async createTag(args: any) {
