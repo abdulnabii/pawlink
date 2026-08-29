@@ -60,7 +60,17 @@ export function verifyToken(token: string): SessionUser | null {
  */
 export async function getSession(): Promise<SessionUser | null> {
   try {
-    // 1. Check Supabase Auth SSR if configured
+    // 1. Primary: Direct PawLink JWT Session Cookie
+    const cookieStore = cookies();
+    const token = cookieStore.get(COOKIE_NAME)?.value;
+    if (token) {
+      const verified = verifyToken(token);
+      if (verified) {
+        return verified;
+      }
+    }
+
+    // 2. Secondary: Supabase Auth SSR (if configured)
     const supabase = createServerSupabaseClient();
     if (supabase) {
       const {
@@ -68,7 +78,6 @@ export async function getSession(): Promise<SessionUser | null> {
       } = await supabase.auth.getUser();
 
       if (sbUser && sbUser.email) {
-        // Find or sync matching application user in PawLink database
         let appUser = await db.user.findFirst({
           where: {
             OR: [
@@ -96,12 +105,6 @@ export async function getSession(): Promise<SessionUser | null> {
               },
             },
           });
-        } else if (!appUser.authUserId) {
-          // Link Supabase Auth ID if previously unlinked
-          appUser = await db.user.update({
-            where: { id: appUser.id },
-            data: { authUserId: sbUser.id },
-          });
         }
 
         return {
@@ -115,11 +118,7 @@ export async function getSession(): Promise<SessionUser | null> {
       }
     }
 
-    // 2. Fallback to Cookie Session
-    const cookieStore = cookies();
-    const token = cookieStore.get(COOKIE_NAME)?.value;
-    if (!token) return null;
-    return verifyToken(token);
+    return null;
   } catch {
     return null;
   }

@@ -315,10 +315,12 @@ export class ResilientDataStore {
   }
 
   async findPetFirst(args: any) {
-    const pets = await this.findPets(args);
     if (args?.where?.id) {
-      return pets.find((p) => p.id === args.where.id) || null;
+      const pet = this.pets.find((p) => p.id === args.where.id);
+      if (pet) return this.hydratePet(pet);
+      return null;
     }
+    const pets = await this.findPets(args);
     return pets[0] || null;
   }
 
