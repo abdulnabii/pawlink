@@ -7,16 +7,30 @@ import { Plus, Dog, QrCode, ArrowRight, ShieldCheck, AlertTriangle } from "lucid
 export default function PetsListPage() {
   const [pets, setPets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    let active = true;
+
     fetch("/api/pets")
       .then((res) => res.json())
       .then((data) => {
-        if (data.pets) setPets(data.pets);
-        setLoading(false);
+        if (active) {
+          if (Array.isArray(data?.pets)) setPets(data.pets);
+          setLoading(false);
+        }
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  if (!mounted) return null;
 
   return (
     <div className="space-y-6">

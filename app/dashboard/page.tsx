@@ -22,24 +22,40 @@ export default function DashboardOverviewPage() {
   const [pets, setPets] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    let active = true;
+
     Promise.all([
-      fetch("/api/auth/me").then((res) => res.json()),
-      fetch("/api/pets").then((res) => res.json()),
-      fetch("/api/tags").then((res) => res.json()),
+      fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/pets").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/tags").then((res) => res.json()).catch(() => ({})),
     ])
       .then(([userData, petsData, tagsData]) => {
-        if (userData?.user) setUser(userData.user);
-        if (petsData?.pets) setPets(petsData.pets);
-        if (tagsData?.tags) setTags(tagsData.tags);
-        setLoading(false);
+        if (active) {
+          if (userData?.user) setUser(userData.user);
+          if (Array.isArray(petsData?.pets)) setPets(petsData.pets);
+          if (Array.isArray(tagsData?.tags)) setTags(tagsData.tags);
+          setLoading(false);
+        }
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const totalScans = tags.reduce((acc, tag) => acc + (tag.scanCount || 0), 0);
-  const lostPetsCount = pets.filter((p) => p.status === "LOST").length;
+  const safeTags = Array.isArray(tags) ? tags : [];
+  const safePets = Array.isArray(pets) ? pets : [];
+  const totalScans = safeTags.reduce((acc, tag) => acc + (tag?.scanCount || 0), 0);
+  const lostPetsCount = safePets.filter((p) => p?.status === "LOST").length;
+
+  if (!mounted) return null;
 
   return (
     <div className="space-y-8 animate-fadeIn">

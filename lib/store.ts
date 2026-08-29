@@ -269,9 +269,28 @@ export class ResilientDataStore {
     ];
   }
 
+  private mergeArrayById(currentArr: any[], incomingArr: any[]) {
+    if (!Array.isArray(incomingArr) || incomingArr.length === 0) return currentArr;
+    const map = new Map();
+    for (const item of currentArr) {
+      if (item && item.id) map.set(item.id, item);
+    }
+    for (const item of incomingArr) {
+      if (item && item.id) {
+        const existing = map.get(item.id);
+        if (!existing) {
+          map.set(item.id, item);
+        } else {
+          map.set(item.id, { ...existing, ...item });
+        }
+      }
+    }
+    return Array.from(map.values());
+  }
+
   async syncFromCloud() {
     const now = Date.now();
-    if (now - this.lastCloudSync < 1000) return;
+    if (now - this.lastCloudSync < 800) return;
     this.lastCloudSync = now;
 
     try {
@@ -287,15 +306,15 @@ export class ResilientDataStore {
         const rows = await res.json();
         if (rows && rows[0]?.description) {
           const state = JSON.parse(rows[0].description);
-          if (Array.isArray(state.users) && state.users.length > 0) this.users = state.users;
-          if (Array.isArray(state.pets) && state.pets.length > 0) this.pets = state.pets;
-          if (Array.isArray(state.tags) && state.tags.length > 0) this.tags = state.tags;
-          if (Array.isArray(state.tagAssignments) && state.tagAssignments.length > 0) this.tagAssignments = state.tagAssignments;
-          if (Array.isArray(state.recoveryCases)) this.recoveryCases = state.recoveryCases;
-          if (Array.isArray(state.recoveryEvents)) this.recoveryEvents = state.recoveryEvents;
-          if (Array.isArray(state.scanEvents)) this.scanEvents = state.scanEvents;
-          if (Array.isArray(state.locationEvents)) this.locationEvents = state.locationEvents;
-          if (Array.isArray(state.conversations)) this.conversations = state.conversations;
+          if (Array.isArray(state.users)) this.users = this.mergeArrayById(this.users, state.users);
+          if (Array.isArray(state.pets)) this.pets = this.mergeArrayById(this.pets, state.pets);
+          if (Array.isArray(state.tags)) this.tags = this.mergeArrayById(this.tags, state.tags);
+          if (Array.isArray(state.tagAssignments)) this.tagAssignments = this.mergeArrayById(this.tagAssignments, state.tagAssignments);
+          if (Array.isArray(state.recoveryCases)) this.recoveryCases = this.mergeArrayById(this.recoveryCases, state.recoveryCases);
+          if (Array.isArray(state.recoveryEvents)) this.recoveryEvents = this.mergeArrayById(this.recoveryEvents, state.recoveryEvents);
+          if (Array.isArray(state.scanEvents)) this.scanEvents = this.mergeArrayById(this.scanEvents, state.scanEvents);
+          if (Array.isArray(state.locationEvents)) this.locationEvents = this.mergeArrayById(this.locationEvents, state.locationEvents);
+          if (Array.isArray(state.conversations)) this.conversations = this.mergeArrayById(this.conversations, state.conversations);
         }
       }
     } catch {}

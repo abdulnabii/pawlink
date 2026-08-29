@@ -37,20 +37,25 @@ export function DashboardNav() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
-        if (data.user) {
-          setUser(data.user);
-        } else {
-          router.push("/auth/login");
+        if (isMounted) {
+          if (data?.user) {
+            setUser(data.user);
+          }
+          setLoading(false);
         }
-        setLoading(false);
       })
       .catch(() => {
-        router.push("/auth/login");
+        if (isMounted) setLoading(false);
       });
-  }, [router]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });

@@ -20,6 +20,7 @@ export default function TagsManagerPage() {
   const [tags, setTags] = useState<any[]>([]);
   const [pets, setPets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   // Test scan simulation state
   const [testingTagId, setTestingTagId] = useState<string | null>(null);
@@ -33,20 +34,23 @@ export default function TagsManagerPage() {
 
   const fetchTagsAndPets = () => {
     Promise.all([
-      fetch("/api/tags").then((res) => res.json()),
-      fetch("/api/pets").then((res) => res.json()),
+      fetch("/api/tags").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/pets").then((res) => res.json()).catch(() => ({})),
     ])
       .then(([tagsData, petsData]) => {
-        if (tagsData?.tags) setTags(tagsData.tags);
-        if (petsData?.pets) setPets(petsData.pets);
+        if (Array.isArray(tagsData?.tags)) setTags(tagsData.tags);
+        if (Array.isArray(petsData?.pets)) setPets(petsData.pets);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchTagsAndPets();
   }, []);
+
+  if (!mounted) return null;
 
   const handleTestTag = async (tag: any) => {
     setTestingTagId(tag.id);
