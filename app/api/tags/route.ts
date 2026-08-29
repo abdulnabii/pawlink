@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateActivationPin, generateTagCode } from "@/lib/crypto";
 import { getTagRecoveryUrl } from "@/lib/qr";
+import { sanitizePrisma } from "@/lib/sanitize";
 
 export async function GET() {
   try {
@@ -32,7 +33,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ tags });
+    return NextResponse.json({ tags: sanitizePrisma(tags) });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load tags";
     return NextResponse.json({ error: message }, { status: 401 });

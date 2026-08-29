@@ -50,9 +50,19 @@ export default function DashboardOverviewPage() {
     };
   }, []);
 
+  const getSafeNumber = (val: any): number => {
+    if (typeof val === "number" && !isNaN(val)) return val;
+    if (val && typeof val === "object") {
+      if (typeof val.increment === "number") return val.increment;
+      if (typeof val.toNumber === "function") return val.toNumber();
+    }
+    const parsed = Number(val);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const safeTags = Array.isArray(tags) ? tags : [];
   const safePets = Array.isArray(pets) ? pets : [];
-  const totalScans = safeTags.reduce((acc, tag) => acc + (tag?.scanCount || 0), 0);
+  const totalScans = safeTags.reduce((acc, tag) => acc + getSafeNumber(tag?.scanCount), 0);
   const lostPetsCount = safePets.filter((p) => p?.status === "LOST").length;
   const activeTagsCount = safeTags.filter((t) => t?.status === "ACTIVE").length;
 
@@ -226,7 +236,7 @@ export default function DashboardOverviewPage() {
                     </div>
                     <div className="flex items-center justify-between text-slate-600">
                       <span className="font-medium">Scans Recorded:</span>
-                      <span className="font-bold text-slate-800">{activeTag?.scanCount || 0}</span>
+                      <span className="font-bold text-slate-800">{getSafeNumber(activeTag?.scanCount)}</span>
                     </div>
                   </div>
 

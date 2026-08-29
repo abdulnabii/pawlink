@@ -1,14 +1,14 @@
 /**
- * Recursively serializes a Prisma result object to a plain JSON-safe value.
+ * Recursively serializes any Prisma or store result object to a plain JSON-safe value.
  * Converts:
  *   - Prisma Decimal → number
+ *   - Prisma Atomic Operations { increment: N } / { decrement: N } / { set: N } → number
  *   - BigInt → number
  *   - Date → ISO string
  *   - All nested objects and arrays
  *
- * This prevents React error #31: "Objects are not valid as a React child"
- * which occurs when Prisma Decimal objects are passed to JSON responses
- * and then rendered in JSX.
+ * This guarantees that NO non-renderable objects (such as Decimal or {increment})
+ * can EVER be returned to the client and crash React with Error #31.
  */
 export function sanitizePrisma<T>(value: T): T {
   if (value === null || value === undefined) return value;
@@ -21,6 +21,21 @@ export function sanitizePrisma<T>(value: T): T {
     typeof (value as any).toNumber === "function"
   ) {
     return (value as any).toNumber() as unknown as T;
+  }
+
+  // Handle Prisma Atomic Operation objects like { increment: 1 } or { decrement: 1 } or { set: 1 }
+  if (typeof value === "object" && !Array.isArray(value) && value !== null && !(value instanceof Date)) {
+    const keys = Object.keys(value);
+    if (keys.length === 1 && ("increment" in value || "decrement" in value || "set" in value)) {
+      const numVal = (value as any).increment ?? (value as any).decrement ?? (value as any).set;
+      if (typeof numVal === "number") {
+        return numVal as unknown as T;
+      }
+      if (numVal !== null && numVal !== undefined) {
+        const parsed = Number(numVal);
+        if (!isNaN(parsed)) return parsed as unknown as T;
+      }
+    }
   }
 
   // Handle BigInt

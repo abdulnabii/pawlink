@@ -269,6 +269,41 @@ export class ResilientDataStore {
     ];
   }
 
+  private cleanTag(tag: any) {
+    if (!tag) return tag;
+    let sc = tag.scanCount;
+    if (sc && typeof sc === "object") {
+      if (typeof sc.increment === "number") sc = sc.increment;
+      else if (typeof sc.toNumber === "function") sc = sc.toNumber();
+      else sc = 0;
+    }
+    tag.scanCount = typeof sc === "number" && !isNaN(sc) ? sc : Number(sc) || 0;
+    return tag;
+  }
+
+  private applyPrismaData(target: any, data: any) {
+    if (!data || typeof data !== "object") return;
+    for (const [key, val] of Object.entries(data)) {
+      if (val && typeof val === "object" && !Array.isArray(val) && !(val instanceof Date)) {
+        if ("increment" in val && typeof (val as any).increment === "number") {
+          const current = typeof target[key] === "number" ? target[key] : (typeof target[key]?.increment === "number" ? target[key].increment : 0);
+          target[key] = current + (val as any).increment;
+          continue;
+        }
+        if ("decrement" in val && typeof (val as any).decrement === "number") {
+          const current = typeof target[key] === "number" ? target[key] : 0;
+          target[key] = current - (val as any).decrement;
+          continue;
+        }
+        if ("set" in val) {
+          target[key] = (val as any).set;
+          continue;
+        }
+      }
+      target[key] = val;
+    }
+  }
+
   private mergeArrayById(currentArr: any[], incomingArr: any[]) {
     if (!Array.isArray(incomingArr) || incomingArr.length === 0) return currentArr;
     const map = new Map();
@@ -308,7 +343,9 @@ export class ResilientDataStore {
           const state = JSON.parse(rows[0].description);
           if (Array.isArray(state.users)) this.users = this.mergeArrayById(this.users, state.users);
           if (Array.isArray(state.pets)) this.pets = this.mergeArrayById(this.pets, state.pets);
-          if (Array.isArray(state.tags)) this.tags = this.mergeArrayById(this.tags, state.tags);
+          if (Array.isArray(state.tags)) {
+            this.tags = this.mergeArrayById(this.tags, state.tags).map((t) => this.cleanTag(t));
+          }
           if (Array.isArray(state.tagAssignments)) this.tagAssignments = this.mergeArrayById(this.tagAssignments, state.tagAssignments);
           if (Array.isArray(state.recoveryCases)) this.recoveryCases = this.mergeArrayById(this.recoveryCases, state.recoveryCases);
           if (Array.isArray(state.recoveryEvents)) this.recoveryEvents = this.mergeArrayById(this.recoveryEvents, state.recoveryEvents);
@@ -397,7 +434,8 @@ export class ResilientDataStore {
     await this.syncFromCloud();
     const user = await this.findUserUnique(args);
     if (!user) return null;
-    Object.assign(user, args.data, { updatedAt: new Date() });
+    this.applyPrismaData(user, args.data);
+    user.updatedAt = new Date();
     await this.syncToCloud();
     return user;
   }
@@ -442,7 +480,8 @@ export class ResilientDataStore {
     await this.syncFromCloud();
     const pet = this.pets.find((p) => p.id === args.where.id);
     if (!pet) return null;
-    Object.assign(pet, args.data, { updatedAt: new Date() });
+    this.applyPrismaData(pet, args.data);
+    pet.updatedAt = new Date();
     await this.syncToCloud();
     return this.hydratePet(pet);
   }
@@ -528,14 +567,17 @@ export class ResilientDataStore {
     await this.syncFromCloud();
     const tag = this.tags.find((t) => t.id === args.where.id);
     if (!tag) return null;
-    Object.assign(tag, args.data, { updatedAt: new Date() });
+    this.applyPrismaData(tag, args.data);
+    tag.updatedAt = new Date();
+    this.cleanTag(tag);
     await this.syncToCloud();
     return this.hydrateTag(tag);
   }
 
   private hydrateTag(tag: any) {
+    const cleanedTag = this.cleanTag(tag);
     const assignments = this.tagAssignments
-      .filter((a) => a.tagId === tag.id && !a.unassignedAt)
+      .filter((a) => a.tagId === cleanedTag.id && !a.unassignedAt)
       .map((a) => {
         const pet = this.pets.find((p) => p.id === a.petId);
         return {
@@ -551,9 +593,9 @@ export class ResilientDataStore {
       });
 
     return {
-      ...tag,
+      ...cleanedTag,
       assignments,
-      scanEvents: this.scanEvents.filter((s) => s.tagId === tag.id),
+      scanEvents: this.scanEvents.filter((s) => s.tagId === cleanedTag.id),
     };
   }
 
@@ -587,7 +629,8 @@ export class ResilientDataStore {
     await this.syncFromCloud();
     const c = this.recoveryCases.find((x) => x.id === args.where.id);
     if (!c) return null;
-    Object.assign(c, args.data, { updatedAt: new Date() });
+    this.applyPrismaData(c, args.data);
+    c.updatedAt = new Date();
     await this.syncToCloud();
     return c;
   }
@@ -858,7 +901,7 @@ export class ResilientDataStore {
         tagCode: t.tagCode,
         label: t.label,
         status: t.status,
-        scanCount: t.scanCount || 0,
+        scanCount: this.cleanTag(t).scanCount,
         createdAt: t.createdAt,
         lastScannedAt: t.lastScannedAt,
         pet: pet ? { id: pet.id, name: pet.name, species: pet.species } : null,
@@ -890,7 +933,7 @@ export class ResilientDataStore {
       totalPets: this.pets.length,
       lostPets: this.pets.filter((p) => p.status === "LOST").length,
       activeTags: this.tags.filter((t) => t.status === "ACTIVE").length,
-      totalScans: this.tags.reduce((acc, t) => acc + (t.scanCount || 0), 0),
+      totalScans: this.tags.reduce((acc, t) => acc + (this.cleanTag(t).scanCount || 0), 0),
       recoveredCases: this.pets.filter((p) => p.status === "RECOVERED" || p.status === "SAFE").length,
     };
   }

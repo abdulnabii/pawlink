@@ -169,6 +169,16 @@ export default function TagsManagerPage() {
     }
   };
 
+  const getSafeNumber = (val: any): number => {
+    if (typeof val === "number" && !isNaN(val)) return val;
+    if (val && typeof val === "object") {
+      if (typeof val.increment === "number") return val.increment;
+      if (typeof val.toNumber === "function") return val.toNumber();
+    }
+    const parsed = Number(val);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const safeTags = Array.isArray(tags) ? tags : [];
   const safePets = Array.isArray(pets) ? pets : [];
 
@@ -232,7 +242,7 @@ export default function TagsManagerPage() {
             const tagId = tag?.id ?? `tag-${idx}`;
             const tagCode = tag?.tagCode ?? "";
             const tagStatus = tag?.status ?? "UNKNOWN";
-            const scanCount = tag?.scanCount ?? tag?._count?.scanEvents ?? 0;
+            const scanCount = getSafeNumber(tag?.scanCount ?? tag?._count?.scanEvents);
 
             // Assignments — Prisma relation is named 'assignments'
             const assignmentsArr = Array.isArray(tag?.assignments) ? tag.assignments : [];
