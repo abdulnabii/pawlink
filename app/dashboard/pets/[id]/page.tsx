@@ -39,6 +39,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [lostModalOpen, setLostModalOpen] = useState(false);
   const [purgingLocations, setPurgingLocations] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // New medical record form state
   const [showAddMedical, setShowAddMedical] = useState(false);
@@ -48,6 +49,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   const [isPublicAlert, setIsPublicAlert] = useState(false);
 
   const fetchPet = () => {
+    if (!petId) return;
     fetch(`/api/pets/${petId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -58,8 +60,11 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   };
 
   useEffect(() => {
+    setMounted(true);
     if (petId) fetchPet();
   }, [petId]);
+
+  if (!mounted) return null;
 
   const handlePurgeLocationHistory = async () => {
     if (!confirm("Are you sure you want to permanently delete all GPS location records for this pet?")) {

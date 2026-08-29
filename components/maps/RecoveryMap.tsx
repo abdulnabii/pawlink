@@ -35,119 +35,131 @@ export function RecoveryMap({
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
+    let isSubscribed = true;
+
     // Dynamically import leaflet to prevent SSR issues
     import("leaflet").then((L) => {
-      // Fix leaflet default icon path issues
-      const DefaultIcon = L.icon({
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-      });
-      L.Marker.prototype.options.icon = DefaultIcon;
+      if (!isSubscribed || !mapContainerRef.current) return;
 
-      // Determine center point
-      const primaryLat = locationEvents[0]?.latitude || lastSeenLat || 24.8138;
-      const primaryLng = locationEvents[0]?.longitude || lastSeenLng || 67.0299;
+      try {
+        // Fix leaflet default icon path issues
+        const DefaultIcon = L.icon({
+          iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+          shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+        });
+        L.Marker.prototype.options.icon = DefaultIcon;
 
-      if (!mapContainerRef.current) return;
+        const primaryLat = locationEvents[0]?.latitude || lastSeenLat || 24.8138;
+        const primaryLng = locationEvents[0]?.longitude || lastSeenLng || 67.0299;
 
-      if (!mapInstanceRef.current) {
-        const map = L.map(mapContainerRef.current).setView([primaryLat, primaryLng], 14);
+        if (!mapInstanceRef.current) {
+          if ((mapContainerRef.current as any)._leaflet_id) {
+            delete (mapContainerRef.current as any)._leaflet_id;
+          }
+          const map = L.map(mapContainerRef.current).setView([primaryLat, primaryLng], 14);
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 19,
-        }).addTo(map);
-
-        mapInstanceRef.current = map;
-      }
-
-      const map = mapInstanceRef.current;
-
-      // Clear existing layers
-      map.eachLayer((layer: any) => {
-        if (layer instanceof L.Marker || layer instanceof L.Circle) {
-          map.removeLayer(layer);
-        }
-      });
-
-      const bounds = L.latLngBounds([]);
-
-      // 1. Plot Last Seen if available
-      if (lastSeenLat && lastSeenLng) {
-        const lastSeenMarker = L.marker([lastSeenLat, lastSeenLng], {
-          icon: L.divIcon({
-            className: "custom-div-icon",
-            html: `
-              <div style="background-color: #ef4444; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 3px solid white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);">
-                📍
-              </div>
-            `,
-            iconSize: [34, 34],
-            iconAnchor: [17, 17],
-          }),
-        }).addTo(map);
-
-        lastSeenMarker.bindPopup(`
-          <div style="font-family: sans-serif; font-size: 13px;">
-            <strong style="color: #ef4444;">🚨 Owner Last Seen</strong><br/>
-            <span>${lastSeenLocation || "Last reported area"}</span>
-          </div>
-        `);
-        bounds.extend([lastSeenLat, lastSeenLng]);
-      }
-
-      // 2. Plot Finder Location Events
-      locationEvents.forEach((loc, idx) => {
-        const isLatest = idx === 0;
-
-        const finderMarker = L.marker([loc.latitude, loc.longitude], {
-          icon: L.divIcon({
-            className: "custom-div-icon",
-            html: `
-              <div style="background-color: ${isLatest ? "#0d9488" : "#64748b"}; width: ${isLatest ? "36px" : "28px"}; height: ${isLatest ? "36px" : "28px"}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 3px solid white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);">
-                🐾
-              </div>
-            `,
-            iconSize: [isLatest ? 36 : 28, isLatest ? 36 : 28],
-            iconAnchor: [isLatest ? 18 : 14, isLatest ? 18 : 14],
-          }),
-        }).addTo(map);
-
-        // Accuracy Circle
-        if (loc.accuracy) {
-          L.circle([loc.latitude, loc.longitude], {
-            radius: Math.min(loc.accuracy, 150),
-            color: isLatest ? "#0d9488" : "#94a3b8",
-            fillColor: isLatest ? "#0d9488" : "#94a3b8",
-            fillOpacity: 0.15,
-            weight: 1,
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
           }).addTo(map);
+
+          mapInstanceRef.current = map;
         }
 
-        finderMarker.bindPopup(`
-          <div style="font-family: sans-serif; font-size: 13px;">
-            <strong style="color: #0d9488;">📍 Finder Location ${isLatest ? "(Latest)" : ""}</strong><br/>
-            <span>${loc.addressName || "Approximate Location"}</span><br/>
-            <small style="color: #64748b;">${new Date(loc.createdAt).toLocaleTimeString()}</small>
-            ${loc.finderNote ? `<p style="margin-top: 4px; font-style: italic;">"${loc.finderNote}"</p>` : ""}
-          </div>
-        `);
+        const map = mapInstanceRef.current;
+        if (!map) return;
 
-        bounds.extend([loc.latitude, loc.longitude]);
-      });
+        // Clear existing layers
+        map.eachLayer((layer: any) => {
+          if (layer instanceof L.Marker || layer instanceof L.Circle) {
+            map.removeLayer(layer);
+          }
+        });
 
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+        const bounds = L.latLngBounds([]);
+
+        // 1. Plot Last Seen if available
+        if (lastSeenLat && lastSeenLng) {
+          const lastSeenMarker = L.marker([lastSeenLat, lastSeenLng], {
+            icon: L.divIcon({
+              className: "custom-div-icon",
+              html: `
+                <div style="background-color: #ef4444; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 3px solid white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);">
+                  📍
+                </div>
+              `,
+              iconSize: [34, 34],
+              iconAnchor: [17, 17],
+            }),
+          }).addTo(map);
+
+          lastSeenMarker.bindPopup(`
+            <div style="font-family: sans-serif; font-size: 13px;">
+              <strong style="color: #ef4444;">🚨 Owner Last Seen</strong><br/>
+              <span>${lastSeenLocation || "Last reported area"}</span>
+            </div>
+          `);
+          bounds.extend([lastSeenLat, lastSeenLng]);
+        }
+
+        // 2. Plot Finder Location Events
+        locationEvents.forEach((loc, idx) => {
+          const isLatest = idx === 0;
+
+          const finderMarker = L.marker([loc.latitude, loc.longitude], {
+            icon: L.divIcon({
+              className: "custom-div-icon",
+              html: `
+                <div style="background-color: ${isLatest ? "#0d9488" : "#64748b"}; width: ${isLatest ? "36px" : "28px"}; height: ${isLatest ? "36px" : "28px"}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 3px solid white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);">
+                  🐾
+                </div>
+              `,
+              iconSize: [isLatest ? 36 : 28, isLatest ? 36 : 28],
+              iconAnchor: [isLatest ? 18 : 14, isLatest ? 18 : 14],
+            }),
+          }).addTo(map);
+
+          // Accuracy Circle
+          if (loc.accuracy) {
+            L.circle([loc.latitude, loc.longitude], {
+              radius: Math.min(loc.accuracy, 150),
+              color: isLatest ? "#0d9488" : "#94a3b8",
+              fillColor: isLatest ? "#0d9488" : "#94a3b8",
+              fillOpacity: 0.15,
+              weight: 1,
+            }).addTo(map);
+          }
+
+          finderMarker.bindPopup(`
+            <div style="font-family: sans-serif; font-size: 13px;">
+              <strong style="color: #0d9488;">📍 Finder Location ${isLatest ? "(Latest)" : ""}</strong><br/>
+              <span>${loc.addressName || "Approximate Location"}</span><br/>
+              <small style="color: #64748b;">${new Date(loc.createdAt).toLocaleTimeString()}</small>
+              ${loc.finderNote ? `<p style="margin-top: 4px; font-style: italic;">"${loc.finderNote}"</p>` : ""}
+            </div>
+          `);
+
+          bounds.extend([loc.latitude, loc.longitude]);
+        });
+
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+        }
+
+        setMapLoaded(true);
+      } catch (err) {
+        console.warn("RecoveryMap notice:", err);
       }
-
-      setMapLoaded(true);
     });
 
     return () => {
+      isSubscribed = false;
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        try {
+          mapInstanceRef.current.remove();
+        } catch {}
         mapInstanceRef.current = null;
       }
     };

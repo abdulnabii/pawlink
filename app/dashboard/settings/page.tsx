@@ -16,6 +16,7 @@ import {
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   // Phone verification state
   const [phone, setPhone] = useState("");
@@ -28,22 +29,35 @@ export default function SettingsPage() {
   const [emailEnabled, setEmailEnabled] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
+    let active = true;
+
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
-        if (data.user) {
-          setUser(data.user);
-          const pref = data.user.notificationPreference;
-          if (pref) {
-            setPhone(pref.notificationPhone || data.user.phone || "");
-            setWhatsappEnabled(pref.whatsappEnabled);
-            setEmailEnabled(pref.emailEnabled);
+        if (active) {
+          if (data?.user) {
+            setUser(data.user);
+            const pref = data.user.notificationPreference;
+            if (pref) {
+              setPhone(pref.notificationPhone || data.user.phone || "");
+              setWhatsappEnabled(pref.whatsappEnabled);
+              setEmailEnabled(pref.emailEnabled);
+            }
           }
+          setLoading(false);
         }
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  if (!mounted) return null;
 
   const handleVerifyWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
