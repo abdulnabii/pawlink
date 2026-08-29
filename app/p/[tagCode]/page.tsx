@@ -77,23 +77,7 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
       async (pos) => {
         try {
           const { latitude, longitude, accuracy } = pos.coords;
-
-          // Perform reverse geocoding via OpenStreetMap Nominatim for human-readable neighborhood
-          let addressName = "Approximate Finder Area";
-          try {
-            const geoRes = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-            );
-            const geoData = await geoRes.json();
-            if (geoData?.address) {
-              const addr = geoData.address;
-              addressName = [addr.suburb || addr.neighbourhood || addr.road, addr.city || addr.town || addr.county, addr.country]
-                .filter(Boolean)
-                .join(", ");
-            }
-          } catch {
-            addressName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          }
+          const addressName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
 
           const res = await fetch("/api/location-event", {
             method: "POST",
@@ -102,8 +86,8 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
               tagCode,
               latitude,
               longitude,
-              accuracy,
-              addressName,
+              accuracy: accuracy || 15,
+              addressName: "GPS Pinned Location",
             }),
           });
 
@@ -111,10 +95,11 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
             setLocationSharedSuccess(true);
             setShowLocationConsent(false);
           } else {
-            setLocationError("Failed to transmit coordinates. Please try again.");
+            const data = await res.json().catch(() => ({}));
+            setLocationError(data.error || "Failed to transmit coordinates. Please try again.");
           }
         } catch {
-          setLocationError("Error processing location data.");
+          setLocationError("Error sending location data.");
         } finally {
           setSharingLocation(false);
         }
@@ -122,12 +107,12 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
       (err) => {
         setSharingLocation(false);
         if (err.code === err.PERMISSION_DENIED) {
-          setLocationError("Location permission was denied. You can still message or call the owner below.");
+          setLocationError("Location permission was denied in your browser settings. You can still message the owner below.");
         } else {
-          setLocationError("Could not retrieve precise location. You can still contact the owner.");
+          setLocationError("Could not retrieve GPS coordinates. Please ensure location services are enabled on your device.");
         }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 

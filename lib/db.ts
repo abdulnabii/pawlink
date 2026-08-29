@@ -163,7 +163,12 @@ function createSelfHealingDb() {
         return { count: 1 };
       },
       create: async (args: any) => {
-        return { id: `case_${Date.now()}`, ...args.data };
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.recoveryCase.create(args);
+          } catch {}
+        }
+        return resilientStore.createRecoveryCase(args);
       },
       update: async (args: any) => {
         return { id: args.where?.id, ...args.data };

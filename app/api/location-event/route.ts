@@ -34,7 +34,19 @@ export async function POST(req: NextRequest) {
     }
 
     const pet = tag.assignments[0].pet;
-    const activeCase = pet.recoveryCases[0] || null;
+    let activeCase = pet.recoveryCases?.[0] || null;
+
+    if (!activeCase) {
+      activeCase = await db.recoveryCase.create({
+        data: {
+          petId: pet.id,
+          status: "OPEN",
+          lastSeenLocation: validated.addressName || "Finder Pinned Location",
+          lastSeenLatitude: validated.latitude,
+          lastSeenLongitude: validated.longitude,
+        },
+      });
+    }
 
     // Default 30-day expiration for location data
     const locationExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

@@ -463,6 +463,26 @@ export class ResilientDataStore {
     return scan;
   }
 
+  async createRecoveryCase(args: any) {
+    const caseId = `case_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const c = {
+      id: caseId,
+      petId: args.data.petId,
+      status: args.data.status || "OPEN",
+      lastSeenLocation: args.data.lastSeenLocation || null,
+      lastSeenLatitude: args.data.lastSeenLatitude || null,
+      lastSeenLongitude: args.data.lastSeenLongitude || null,
+      rewardAmount: args.data.rewardAmount || 0,
+      description: args.data.description || null,
+      startedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      locationEvents: [],
+    };
+    this.recoveryCases.push(c);
+    return c;
+  }
+
   async createLocationEvent(args: any) {
     const loc = {
       id: `loc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -470,6 +490,15 @@ export class ResilientDataStore {
       createdAt: new Date(),
     };
     this.locationEvents.push(loc);
+
+    if (args.data?.recoveryCaseId) {
+      const rc = this.recoveryCases.find((c) => c.id === args.data.recoveryCaseId);
+      if (rc) {
+        if (!rc.locationEvents) rc.locationEvents = [];
+        rc.locationEvents.push(loc);
+      }
+    }
+
     return loc;
   }
 
