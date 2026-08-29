@@ -45,9 +45,9 @@ export class ResilientDataStore {
       },
       {
         id: adminId,
-        email: "admin@pawlink.pet",
-        passwordHash: "$2a$10$fWvB30K5R7pW4N9y0lU5mOI6iO0m/v2R3hP3E0gY5e8G9d6c7b8a.", // password123
-        name: "PawLink Admin",
+        email: "abdulnabi.khaskheli@gmail.com",
+        passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
+        name: "Abdul Nabi Khaskheli",
         role: "ADMIN",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -691,6 +691,64 @@ export class ResilientDataStore {
     };
     this.auditLogs.push(log);
     return log;
+  }
+
+  getAllUsersForAdmin() {
+    return this.users.map((u) => {
+      const userPets = this.pets.filter((p) => p.userId === u.id);
+      return {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        phone: u.phone,
+        role: u.role,
+        createdAt: u.createdAt,
+        petCount: userPets.length,
+        pets: userPets.map((p) => p.name),
+      };
+    });
+  }
+
+  getAllPetsForAdmin() {
+    return this.pets.map((p) => {
+      const owner = this.users.find((u) => u.id === p.userId);
+      const asgn = this.tagAssignments.find((a) => a.petId === p.id && !a.unassignedAt);
+      const tag = asgn ? this.tags.find((t) => t.id === asgn.tagId) : null;
+
+      return {
+        id: p.id,
+        name: p.name,
+        species: p.species,
+        breed: p.breed,
+        gender: p.gender,
+        color: p.color,
+        status: p.status,
+        photoUrl: p.photoUrl,
+        createdAt: p.createdAt,
+        owner: owner ? { id: owner.id, name: owner.name, email: owner.email } : null,
+        tagCode: tag?.tagCode || null,
+      };
+    });
+  }
+
+  getAllTagsForAdmin() {
+    return this.tags.map((t) => {
+      const asgn = this.tagAssignments.find((a) => a.tagId === t.id && !a.unassignedAt);
+      const pet = asgn ? this.pets.find((p) => p.id === asgn.petId) : null;
+      const owner = pet ? this.users.find((u) => u.id === pet.userId) : null;
+
+      return {
+        id: t.id,
+        tagCode: t.tagCode,
+        label: t.label,
+        status: t.status,
+        scanCount: t.scanCount || 0,
+        createdAt: t.createdAt,
+        lastScannedAt: t.lastScannedAt,
+        pet: pet ? { id: pet.id, name: pet.name, species: pet.species } : null,
+        owner: owner ? { id: owner.id, name: owner.name, email: owner.email } : null,
+      };
+    });
   }
 
   getRecentScans(take = 10) {

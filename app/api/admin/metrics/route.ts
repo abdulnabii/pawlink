@@ -1,67 +1,24 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { resilientStore } from "@/lib/store";
 
 export async function GET() {
   try {
     await requireAdmin();
 
-    const [
-      totalUsers,
-      totalPets,
-      lostPets,
-      recoveredCases,
-      totalTags,
-      activeTags,
-      totalScans,
-      recentScans,
-      notificationsCount,
-      recentJobs,
-    ] = await Promise.all([
-      db.user.count(),
-      db.pet.count(),
-      db.pet.count({ where: { status: "LOST" } }),
-      db.recoveryCase.count({ where: { status: "RESOLVED" } }),
-      db.tag.count(),
-      db.tag.count({ where: { status: "ACTIVE" } }),
-      db.scanEvent.count(),
-      db.scanEvent.findMany({
-        take: 10,
-        orderBy: { timestamp: "desc" },
-        include: {
-          tag: {
-            include: {
-              assignments: {
-                where: { unassignedAt: null },
-                include: { pet: true },
-              },
-            },
-          },
-        },
-      }),
-      db.notification.groupBy({
-        by: ["channel", "status"],
-        _count: { id: true },
-      }),
-      db.notificationJob.findMany({
-        take: 10,
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
+    const metrics = resilientStore.getMetrics();
+    const users = resilientStore.getAllUsersForAdmin();
+    const pets = resilientStore.getAllPetsForAdmin();
+    const tags = resilientStore.getAllTagsForAdmin();
+    const recentScans = resilientStore.getRecentScans(20);
 
     return NextResponse.json({
-      metrics: {
-        totalUsers,
-        totalPets,
-        lostPets,
-        recoveredCases,
-        totalTags,
-        activeTags,
-        totalScans,
-      },
+      metrics,
+      users,
+      pets,
+      tags,
       recentScans,
-      notificationsCount,
-      recentJobs,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Admin access forbidden";

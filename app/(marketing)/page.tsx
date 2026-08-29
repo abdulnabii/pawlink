@@ -305,7 +305,7 @@ export default function MarketingPage() {
                 <h4 className="text-lg font-bold text-slate-900">Basic ID</h4>
                 <p className="text-xs text-slate-500 mt-1">Essential digital pet tag</p>
                 <div className="my-6">
-                  <span className="text-4xl font-black text-slate-900">$0</span>
+                  <span className="text-4xl font-black text-slate-900">Rs 0</span>
                   <span className="text-xs text-slate-500 font-semibold"> / forever</span>
                 </div>
                 <ul className="space-y-3 text-xs text-slate-700">
@@ -332,7 +332,7 @@ export default function MarketingPage() {
                 <h4 className="text-lg font-bold text-slate-900">Plus Recovery</h4>
                 <p className="text-xs text-slate-500 mt-1">Complete multi-pet recovery pack</p>
                 <div className="my-6">
-                  <span className="text-4xl font-black text-slate-900">$4.99</span>
+                  <span className="text-4xl font-black text-slate-900">Rs 1,499</span>
                   <span className="text-xs text-slate-500 font-semibold"> / month</span>
                 </div>
                 <ul className="space-y-3 text-xs text-slate-700">
@@ -357,7 +357,7 @@ export default function MarketingPage() {
                 <h4 className="text-lg font-bold text-slate-900">Pro Household</h4>
                 <p className="text-xs text-slate-500 mt-1">Unlimited pets & caretakers</p>
                 <div className="my-6">
-                  <span className="text-4xl font-black text-slate-900">$9.99</span>
+                  <span className="text-4xl font-black text-slate-900">Rs 2,999</span>
                   <span className="text-xs text-slate-500 font-semibold"> / month</span>
                 </div>
                 <ul className="space-y-3 text-xs text-slate-700">
