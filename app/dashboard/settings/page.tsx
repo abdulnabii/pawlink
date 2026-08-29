@@ -16,7 +16,14 @@ import {
   Zap,
   Crown,
   Check,
+  QrCode,
+  X,
+  Clock,
+  Send,
+  Building,
+  HelpCircle,
 } from "lucide-react";
+import { BANK_PAYMENT_CONFIG } from "@/lib/plans";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -33,19 +40,30 @@ export default function SettingsPage() {
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
 
-  // Subscription state
+  // Subscription & Payment state
   const [subscription, setSubscription] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
+  const [userRequests, setUserRequests] = useState<any[]>([]);
   const [changingPlan, setChangingPlan] = useState(false);
   const [planSuccessMessage, setPlanSuccessMessage] = useState<string | null>(null);
   const [planErrorMessage, setPlanErrorMessage] = useState<string | null>(null);
+
+  // Payment Checkout Modal
+  const [selectedPlanForPayment, setSelectedPlanForPayment] = useState<any | null>(null);
+  const [transactionId, setTransactionId] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [senderPhone, setSenderPhone] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [paymentModalError, setPaymentModalError] = useState<string | null>(null);
 
   const fetchUserData = () => {
     Promise.all([
       fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
       fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/subscription/request").then((res) => res.json()).catch(() => ({ requests: [] })),
     ])
-      .then(([userData, subData]) => {
+      .then(([userData, subData, reqData]) => {
         if (userData?.user) {
           setUser(userData.user);
           const pref = userData.user.notificationPreference;
@@ -54,12 +72,17 @@ export default function SettingsPage() {
             setWhatsappEnabled(pref.whatsappEnabled);
             setEmailEnabled(pref.emailEnabled);
           }
+          setSenderName(userData.user.name || "");
+          setSenderPhone(userData.user.phone || "");
         }
         if (subData?.subscription) {
           setSubscription(subData.subscription);
         }
         if (Array.isArray(subData?.plans)) {
           setPlans(subData.plans);
+        }
+        if (Array.isArray(reqData?.requests)) {
+          setUserRequests(reqData.requests);
         }
         setLoading(false);
       })
@@ -100,32 +123,75 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSelectPlan = async (planId: string) => {
-    setChangingPlan(true);
+  const handlePlanClick = (plan: any) => {
     setPlanSuccessMessage(null);
     setPlanErrorMessage(null);
 
+    if (plan.id === "FREE") {
+      // Free plan switches immediately
+      handleDirectFreeSwitch();
+    } else {
+      // Paid plan requires Meezan Bank payment verification
+      setSelectedPlanForPayment(plan);
+      setPaymentModalError(null);
+    }
+  };
+
+  const handleDirectFreeSwitch = async () => {
+    setChangingPlan(true);
     try {
       const res = await fetch("/api/subscription/upgrade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planId }),
+        body: JSON.stringify({ plan: "FREE" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to switch to Basic plan");
+      setPlanSuccessMessage(data.message || "Switched to Basic ID plan!");
+      fetchUserData();
+    } catch (err: any) {
+      setPlanErrorMessage(err.message);
+    } finally {
+      setChangingPlan(false);
+    }
+  };
+
+  const handleSubmitPaymentProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPlanForPayment) return;
+
+    setSubmittingPayment(true);
+    setPaymentModalError(null);
+
+    try {
+      const res = await fetch("/api/subscription/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: selectedPlanForPayment.id,
+          transactionId,
+          senderName,
+          senderPhone,
+          notes: paymentNotes,
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to update membership plan");
+        throw new Error(data.error || "Failed to submit payment verification");
       }
 
-      setPlanSuccessMessage(data.message || "Plan updated successfully!");
-      if (data.subscription) {
-        setSubscription(data.subscription);
-      }
+      setPlanSuccessMessage(
+        `Payment verification submitted for ${selectedPlanForPayment.name}! Our team will verify the transaction and activate your plan.`
+      );
+      setSelectedPlanForPayment(null);
+      setTransactionId("");
+      setPaymentNotes("");
       fetchUserData();
     } catch (err: any) {
-      setPlanErrorMessage(err.message || "Failed to update plan");
+      setPaymentModalError(err.message || "Failed to submit payment details");
     } finally {
-      setChangingPlan(false);
+      setSubmittingPayment(false);
     }
   };
 
@@ -135,15 +201,41 @@ export default function SettingsPage() {
 
   const isVerified = user?.notificationPreference?.whatsappVerified;
   const currentPlanId = (subscription?.plan || "FREE").toUpperCase();
+  const latestPendingRequest = userRequests.find((r) => r.status === "PENDING");
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn pb-12">
+    <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn pb-16">
       <div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Account, Plans &amp; Alerts</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Manage your membership tier, WhatsApp scan alert channels, and recovery notifications.
+          Manage your membership tier, bank payment verification, and WhatsApp scan notifications.
         </p>
       </div>
+
+      {/* PENDING PAYMENT VERIFICATION BANNER */}
+      {latestPendingRequest && (
+        <div className="p-5 bg-amber-50 border-2 border-amber-300 rounded-3xl text-amber-900 flex items-start justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+              <Clock className="w-5 h-5 animate-spin" />
+            </div>
+            <div className="text-xs space-y-1">
+              <p className="font-extrabold text-sm text-amber-950">
+                Payment Verification Pending Approval
+              </p>
+              <p className="text-amber-800">
+                You submitted a payment of <strong>Rs {latestPendingRequest.amountPKR}</strong> for the <strong>{latestPendingRequest.requestedPlan} Plan</strong> (TxID: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold text-amber-950">{latestPendingRequest.transactionId}</code>).
+              </p>
+              <p className="text-amber-700 text-[11px] pt-1">
+                Admin is reviewing your transaction. You can also send the screenshot to <a href={`mailto:${BANK_PAYMENT_CONFIG.adminEmail}`} className="underline font-bold text-amber-900">{BANK_PAYMENT_CONFIG.adminEmail}</a> for priority approval.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-900 px-2.5 py-1 rounded-full shrink-0">
+            In Review
+          </span>
+        </div>
+      )}
 
       {/* MEMBERSHIP & SUBSCRIPTION PLANS SECTION */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
@@ -155,7 +247,7 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-base font-bold text-slate-900">Membership &amp; Subscription Tier</h3>
               <p className="text-xs text-slate-500">
-                Choose the protection level for your animals and collar tags.
+                Choose your protection tier with instant Meezan Bank / Raast verification.
               </p>
             </div>
           </div>
@@ -215,7 +307,7 @@ export default function SettingsPage() {
               </ul>
             </div>
             <button
-              onClick={() => handleSelectPlan("FREE")}
+              onClick={() => handlePlanClick({ id: "FREE", name: "Basic ID" })}
               disabled={changingPlan || currentPlanId === "FREE"}
               className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all ${
                 currentPlanId === "FREE"
@@ -257,7 +349,7 @@ export default function SettingsPage() {
               </ul>
             </div>
             <button
-              onClick={() => handleSelectPlan("PLUS")}
+              onClick={() => handlePlanClick({ id: "PLUS", name: "Plus Recovery", pricePKR: 1499 })}
               disabled={changingPlan || currentPlanId === "PLUS"}
               className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all ${
                 currentPlanId === "PLUS"
@@ -265,13 +357,7 @@ export default function SettingsPage() {
                   : "bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/20"
               }`}
             >
-              {changingPlan ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : currentPlanId === "PLUS" ? (
-                "Active Plan"
-              ) : (
-                "Upgrade to Plus"
-              )}
+              {currentPlanId === "PLUS" ? "Active Plan" : "Upgrade to Plus"}
             </button>
           </div>
 
@@ -301,7 +387,7 @@ export default function SettingsPage() {
               </ul>
             </div>
             <button
-              onClick={() => handleSelectPlan("PRO")}
+              onClick={() => handlePlanClick({ id: "PRO", name: "Pro Household", pricePKR: 2999 })}
               disabled={changingPlan || currentPlanId === "PRO"}
               className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all ${
                 currentPlanId === "PRO"
@@ -309,13 +395,7 @@ export default function SettingsPage() {
                   : "bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
               }`}
             >
-              {changingPlan ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : currentPlanId === "PRO" ? (
-                "Active Plan"
-              ) : (
-                "Upgrade to Pro"
-              )}
+              {currentPlanId === "PRO" ? "Active Plan" : "Upgrade to Pro"}
             </button>
           </div>
         </div>
@@ -434,6 +514,175 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* MEEZAN BANK QR PAYMENT VERIFICATION MODAL */}
+      {selectedPlanForPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Upgrade to {selectedPlanForPayment.name}
+                  </h3>
+                  <p className="text-xs text-teal-600 font-bold">
+                    Amount: Rs {selectedPlanForPayment.pricePKR.toLocaleString()} / month
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedPlanForPayment(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5 pt-4">
+              {/* Meezan Bank QR Box */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center flex flex-col items-center space-y-3">
+                <div className="flex items-center gap-2">
+                  <Building className="w-4 h-4 text-emerald-700" />
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                    {BANK_PAYMENT_CONFIG.bankName} Official QR Payment
+                  </span>
+                </div>
+
+                <div className="w-52 h-52 bg-white rounded-2xl p-2 shadow-md border-2 border-slate-800 flex items-center justify-center">
+                  <img
+                    src={BANK_PAYMENT_CONFIG.qrCodeUrl}
+                    alt="Meezan Bank QR Code"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+
+                <div className="text-xs space-y-1 text-slate-700">
+                  <p>
+                    <strong>Account Title:</strong>{" "}
+                    <span className="font-mono bg-slate-200 px-1.5 py-0.5 rounded font-bold">
+                      {BANK_PAYMENT_CONFIG.accountTitle}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>Reference / Raast:</strong>{" "}
+                    <span className="font-mono bg-slate-200 px-1.5 py-0.5 rounded font-bold">
+                      {BANK_PAYMENT_CONFIG.raastOrAccountRef}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-slate-500 max-w-xs mx-auto pt-1 leading-tight">
+                    Scan using Meezan App, Raast, Easypaisa, JazzCash, SadaPay, or any 1Link banking app.
+                  </p>
+                </div>
+              </div>
+
+              {/* Direct Mail Notice */}
+              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] text-indigo-900 flex items-start gap-2">
+                <Mail className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                <p>
+                  You can also email your payment receipt to{" "}
+                  <a
+                    href={`mailto:${BANK_PAYMENT_CONFIG.adminEmail}`}
+                    className="font-bold underline text-indigo-950"
+                  >
+                    {BANK_PAYMENT_CONFIG.adminEmail}
+                  </a>{" "}
+                  for immediate verification.
+                </p>
+              </div>
+
+              {/* Verification Form */}
+              <form onSubmit={handleSubmitPaymentProof} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Transaction ID / Reference Number *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    placeholder="e.g. TRX198273645 or 8291038"
+                    className="w-full text-xs rounded-xl border border-slate-300 p-2.5 font-mono focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Sender Account Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      placeholder="e.g. Ali Khan"
+                      className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Sender Mobile / Bank
+                    </label>
+                    <input
+                      type="text"
+                      value={senderPhone}
+                      onChange={(e) => setSenderPhone(e.target.value)}
+                      placeholder="e.g. +92300... or Meezan"
+                      className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Additional Notes (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    placeholder="Paid via Easypaisa / Meezan App"
+                    className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  />
+                </div>
+
+                {paymentModalError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                    {paymentModalError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlanForPayment(null)}
+                    className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingPayment}
+                    className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2"
+                  >
+                    {submittingPayment ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    <span>Submit Verification for Approval</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

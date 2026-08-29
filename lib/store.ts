@@ -19,6 +19,7 @@ export class ResilientDataStore {
   private notifications: any[] = [];
   private notificationJobs: any[] = [];
   private subscriptions: any[] = [];
+  private paymentRequests: any[] = [];
   private auditLogs: any[] = [];
 
   private lastCloudSync = 0;
@@ -354,6 +355,7 @@ export class ResilientDataStore {
           if (Array.isArray(state.locationEvents)) this.locationEvents = this.mergeArrayById(this.locationEvents, state.locationEvents);
           if (Array.isArray(state.conversations)) this.conversations = this.mergeArrayById(this.conversations, state.conversations);
           if (Array.isArray(state.subscriptions)) this.subscriptions = this.mergeArrayById(this.subscriptions, state.subscriptions);
+          if (Array.isArray(state.paymentRequests)) this.paymentRequests = this.mergeArrayById(this.paymentRequests, state.paymentRequests);
         }
       }
     } catch {}
@@ -372,6 +374,7 @@ export class ResilientDataStore {
         locationEvents: this.locationEvents,
         conversations: this.conversations,
         subscriptions: this.subscriptions,
+        paymentRequests: this.paymentRequests,
         updatedAt: new Date().toISOString(),
       };
 
@@ -929,6 +932,93 @@ export class ResilientDataStore {
     sub.updatedAt = new Date();
     await this.syncToCloud();
     return sub;
+  }
+
+  // --- PAYMENT / UPGRADE REQUEST METHODS ---
+  async createPaymentRequest(data: any) {
+    await this.syncFromCloud();
+    const req = {
+      id: `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      userId: data.userId,
+      userEmail: data.userEmail,
+      userName: data.userName,
+      requestedPlan: data.requestedPlan,
+      amountPKR: data.amountPKR,
+      transactionId: data.transactionId,
+      senderName: data.senderName,
+      senderPhone: data.senderPhone || null,
+      notes: data.notes || null,
+      status: "PENDING", // PENDING, APPROVED, REJECTED
+      adminNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.paymentRequests.push(req);
+    await this.syncToCloud();
+    return req;
+  }
+
+  async getAllPaymentRequests() {
+    await this.syncFromCloud();
+    return [...this.paymentRequests].reverse();
+  }
+
+  async getPendingPaymentRequests() {
+    await this.syncFromCloud();
+    return this.paymentRequests.filter((p) => p.status === "PENDING").reverse();
+  }
+
+  async getUserPaymentRequests(userId: string) {
+    await this.syncFromCloud();
+    return this.paymentRequests.filter((p) => p.userId === userId).reverse();
+  }
+
+  async approvePaymentRequest(requestId: string, adminNotes?: string) {
+    await this.syncFromCloud();
+    const req = this.paymentRequests.find((p) => p.id === requestId);
+    if (!req) return null;
+
+    req.status = "APPROVED";
+    req.adminNotes = adminNotes || "Payment verified and approved by admin";
+    req.reviewedAt = new Date();
+    req.updatedAt = new Date();
+
+    // Activate the subscription for this user
+    let sub = this.subscriptions.find((s) => s.userId === req.userId);
+    if (sub) {
+      sub.plan = req.requestedPlan;
+      sub.status = "ACTIVE";
+      sub.currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      sub.updatedAt = new Date();
+    } else {
+      this.subscriptions.push({
+        id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        userId: req.userId,
+        plan: req.requestedPlan,
+        status: "ACTIVE",
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        cancelAtPeriodEnd: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    await this.syncToCloud();
+    return req;
+  }
+
+  async rejectPaymentRequest(requestId: string, adminNotes?: string) {
+    await this.syncFromCloud();
+    const req = this.paymentRequests.find((p) => p.id === requestId);
+    if (!req) return null;
+
+    req.status = "REJECTED";
+    req.adminNotes = adminNotes || "Payment verification declined";
+    req.reviewedAt = new Date();
+    req.updatedAt = new Date();
+
+    await this.syncToCloud();
+    return req;
   }
 
   async getAllUsersForAdmin() {

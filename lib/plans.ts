@@ -15,6 +15,16 @@ export interface PricingPlan {
   };
 }
 
+export const BANK_PAYMENT_CONFIG = {
+  bankName: "Meezan Bank",
+  accountTitle: "ABDUL NABI",
+  raastOrAccountRef: "ABDUL NABI-9601",
+  adminEmail: "abdulnabi.khaskheli@gmail.com",
+  qrCodeUrl: "/images/meezan-qr.png",
+  instructions:
+    "Scan the Meezan Bank QR code using any banking or microfinance app (Meezan Bank App, Raast, Easypaisa, JazzCash, NayaPay, SadaPay, or 1Link mobile banking) to send the plan fee. Submit your Transaction ID / Reference below or email your receipt to abdulnabi.khaskheli@gmail.com.",
+};
+
 export const PLANS: PricingPlan[] = [
   {
     id: "FREE",
