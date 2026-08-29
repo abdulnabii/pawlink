@@ -26,29 +26,38 @@ export function getTagRecoveryUrl(tagCode: string): string {
  */
 export async function generateQrSvg(tagCode: string): Promise<string> {
   const url = getTagRecoveryUrl(tagCode);
-  return QRCode.toString(url, {
-    type: "svg",
-    margin: 1,
-    color: {
-      dark: "#0f172a",
-      light: "#ffffff",
-    },
-    errorCorrectionLevel: "H", // High error correction for durable collar tags
-  });
+  try {
+    return await QRCode.toString(url, {
+      type: "svg",
+      margin: 1,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+      errorCorrectionLevel: "H",
+    });
+  } catch {
+    return "";
+  }
 }
 
 /**
- * Generates a PNG Data URL of the QR code
+ * Generates a PNG Data URL of the QR code with instant resilient fallback
  */
 export async function generateQrDataUrl(tagCode: string): Promise<string> {
   const url = getTagRecoveryUrl(tagCode);
-  return QRCode.toDataURL(url, {
-    margin: 1,
-    width: 512,
-    color: {
-      dark: "#0f172a",
-      light: "#ffffff",
-    },
-    errorCorrectionLevel: "H",
-  });
+  try {
+    if (typeof QRCode !== "undefined" && typeof QRCode.toDataURL === "function") {
+      return await QRCode.toDataURL(url, {
+        margin: 1,
+        width: 512,
+        color: {
+          dark: "#0f172a",
+          light: "#ffffff",
+        },
+        errorCorrectionLevel: "H",
+      });
+    }
+  } catch {}
+  return `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(url)}`;
 }

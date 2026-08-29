@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { QrCode, Download, Printer, ShieldCheck, Sparkles } from "lucide-react";
-import { generateQrDataUrl, generateQrSvg } from "@/lib/qr";
+import { generateQrDataUrl, generateQrSvg, getTagRecoveryUrl } from "@/lib/qr";
 
 interface PrintableTagBadgeProps {
   tagCode: string;
@@ -11,12 +11,21 @@ interface PrintableTagBadgeProps {
 }
 
 export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBadgeProps) {
-  const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [qrSvg, setQrSvg] = useState<string>("");
+  const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(getTagRecoveryUrl(tagCode))}`;
+  const [qrDataUrl, setQrDataUrl] = useState<string>(fallbackUrl);
 
   useEffect(() => {
-    generateQrDataUrl(tagCode).then(setQrDataUrl);
-    generateQrSvg(tagCode).then(setQrSvg);
+    let active = true;
+    if (tagCode) {
+      generateQrDataUrl(tagCode)
+        .then((url) => {
+          if (active && url) setQrDataUrl(url);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+    };
   }, [tagCode]);
 
   const handlePrint = () => {
@@ -28,6 +37,7 @@ export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBad
     const link = document.createElement("a");
     link.href = qrDataUrl;
     link.download = `PawLink-${petName}-${tagCode}.png`;
+    link.target = "_blank";
     link.click();
   };
 
