@@ -35,17 +35,19 @@ export function DashboardNav() {
   const pathname = typeof rawPathname === "string" ? rawPathname : "";
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+    ])
+      .then(([authData, subData]) => {
         if (isMounted) {
-          if (data?.user) {
-            setUser(data.user);
-          }
+          if (authData?.user) setUser(authData.user);
+          if (subData?.subscription) setSubscription(subData.subscription);
           setLoading(false);
         }
       })
@@ -157,7 +159,7 @@ export function DashboardNav() {
       </div>
 
       {/* User Footer */}
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-slate-800 space-y-2">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white truncate">{user?.name || "Owner"}</p>
@@ -171,6 +173,23 @@ export function DashboardNav() {
             <LogOut className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Membership Tier Pill */}
+        <Link
+          href="/dashboard/settings"
+          className="flex items-center justify-between p-2 rounded-lg bg-slate-800 hover:bg-slate-700/80 transition-colors text-[11px]"
+        >
+          <span className="text-slate-400">Plan:</span>
+          <span className={`font-black uppercase px-2 py-0.5 rounded text-[10px] ${
+            subscription?.plan === "PRO"
+              ? "bg-purple-900/60 text-purple-300 border border-purple-700"
+              : subscription?.plan === "PLUS"
+              ? "bg-teal-900/60 text-teal-300 border border-teal-700"
+              : "bg-slate-700 text-slate-300"
+          }`}>
+            {subscription?.plan === "PRO" ? "👑 Pro" : subscription?.plan === "PLUS" ? "⚡ Plus" : "🛡️ Basic ID"}
+          </span>
+        </Link>
       </div>
     </aside>
   );

@@ -394,6 +394,58 @@ function createSelfHealingDb() {
         return await resilientStore.createAuditLog(args);
       },
     },
+    subscription: {
+      findUnique: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            const res = await rawPrisma.subscription.findUnique(args);
+            if (res) return res;
+          } catch {}
+        }
+        return await resilientStore.findSubscriptionFirst(args);
+      },
+      findFirst: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            const res = await rawPrisma.subscription.findFirst(args);
+            if (res) return res;
+          } catch {}
+        }
+        if (args?.where?.userId) {
+          return await resilientStore.getUserSubscription(args.where.userId);
+        }
+        return await resilientStore.findSubscriptionFirst(args);
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            const res = await rawPrisma.subscription.findMany(args);
+            if (Array.isArray(res) && res.length > 0) return res;
+          } catch {}
+        }
+        return await resilientStore.findSubscriptions(args);
+      },
+      create: async (args: any) => {
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.subscription.create(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.createSubscription(args);
+        return prismaRes || storeRes;
+      },
+      update: async (args: any) => {
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.subscription.update(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.updateSubscription(args);
+        return prismaRes || storeRes;
+      },
+    },
   } as unknown as PrismaClient;
 }
 

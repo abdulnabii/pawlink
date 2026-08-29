@@ -18,6 +18,7 @@ export class ResilientDataStore {
   private messages: any[] = [];
   private notifications: any[] = [];
   private notificationJobs: any[] = [];
+  private subscriptions: any[] = [];
   private auditLogs: any[] = [];
 
   private lastCloudSync = 0;
@@ -352,6 +353,7 @@ export class ResilientDataStore {
           if (Array.isArray(state.scanEvents)) this.scanEvents = this.mergeArrayById(this.scanEvents, state.scanEvents);
           if (Array.isArray(state.locationEvents)) this.locationEvents = this.mergeArrayById(this.locationEvents, state.locationEvents);
           if (Array.isArray(state.conversations)) this.conversations = this.mergeArrayById(this.conversations, state.conversations);
+          if (Array.isArray(state.subscriptions)) this.subscriptions = this.mergeArrayById(this.subscriptions, state.subscriptions);
         }
       }
     } catch {}
@@ -369,6 +371,7 @@ export class ResilientDataStore {
         scanEvents: this.scanEvents,
         locationEvents: this.locationEvents,
         conversations: this.conversations,
+        subscriptions: this.subscriptions,
         updatedAt: new Date().toISOString(),
       };
 
@@ -862,6 +865,70 @@ export class ResilientDataStore {
     };
     this.auditLogs.push(log);
     return log;
+  }
+
+  // --- SUBSCRIPTION METHODS ---
+  async getUserSubscription(userId: string) {
+    await this.syncFromCloud();
+    let sub = this.subscriptions.find((s) => s.userId === userId && s.status === "ACTIVE");
+    if (!sub) {
+      // Default to Basic ID (FREE)
+      sub = {
+        id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        userId,
+        plan: "FREE",
+        status: "ACTIVE",
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.subscriptions.push(sub);
+      await this.syncToCloud();
+    }
+    return sub;
+  }
+
+  async findSubscriptions(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.subscriptions];
+    if (args?.where?.userId) {
+      result = result.filter((s) => s.userId === args.where.userId);
+    }
+    if (args?.where?.status) {
+      result = result.filter((s) => s.status === args.where.status);
+    }
+    return result;
+  }
+
+  async findSubscriptionFirst(args?: any) {
+    const list = await this.findSubscriptions(args);
+    return list[0] || null;
+  }
+
+  async createSubscription(args: any) {
+    await this.syncFromCloud();
+    const sub = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      plan: args.data.plan || "FREE",
+      status: args.data.status || "ACTIVE",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.subscriptions.push(sub);
+    await this.syncToCloud();
+    return sub;
+  }
+
+  async updateSubscription(args: any) {
+    await this.syncFromCloud();
+    const sub = this.subscriptions.find((s) => s.id === args.where?.id || s.userId === args.where?.userId);
+    if (!sub) return null;
+    this.applyPrismaData(sub, args.data);
+    sub.updatedAt = new Date();
+    await this.syncToCloud();
+    return sub;
   }
 
   async getAllUsersForAdmin() {

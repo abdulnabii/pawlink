@@ -77,6 +77,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 3. Create initial Subscription
+    const selectedPlan = (body.plan || "FREE").toUpperCase();
+    const validPlan = ["FREE", "PLUS", "PRO"].includes(selectedPlan) ? selectedPlan : "FREE";
+
+    await db.subscription.create({
+      data: {
+        userId: user.id,
+        plan: validPlan,
+        status: "ACTIVE",
+        currentPeriodEnd: validPlan === "FREE" ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     await setSessionCookie(user);
 
     return NextResponse.json({ success: true, user });

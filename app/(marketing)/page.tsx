@@ -316,8 +316,8 @@ export default function MarketingPage() {
                 </ul>
               </div>
               <Link
-                href="/auth/register"
-                className="mt-8 block text-center py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
+                href="/auth/register?plan=FREE"
+                className="mt-8 block text-center py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors"
               >
                 Get Started Free
               </Link>
@@ -344,8 +344,8 @@ export default function MarketingPage() {
                 </ul>
               </div>
               <Link
-                href="/auth/register"
-                className="mt-8 block text-center py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/20"
+                href="/auth/register?plan=PLUS"
+                className="mt-8 block text-center py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/20 transition-all hover:scale-[1.02]"
               >
                 Start Plus Plan
               </Link>
@@ -368,8 +368,8 @@ export default function MarketingPage() {
                 </ul>
               </div>
               <Link
-                href="/auth/register"
-                className="mt-8 block text-center py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
+                href="/auth/register?plan=PRO"
+                className="mt-8 block text-center py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors"
               >
                 Upgrade to Pro
               </Link>
