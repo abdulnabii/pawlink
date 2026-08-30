@@ -22,20 +22,30 @@ export default function MessagesInboxPage() {
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchConversations = () => {
+    setLoading(true);
+    setFetchError(null);
+
     fetch("/api/conversations")
       .then((res) => res.json())
       .then((data) => {
-        if (data.conversations && Array.isArray(data.conversations)) {
+        if (data?.error && !Array.isArray(data?.conversations)) {
+          setFetchError(data.error);
+        } else if (data.conversations && Array.isArray(data.conversations)) {
           setConversations(data.conversations);
           if (!activeConvId && data.conversations.length > 0) {
             setActiveConvId(data.conversations[0].id);
           }
         }
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setFetchError(err instanceof Error ? err.message : "Failed to load messages");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -90,7 +100,19 @@ export default function MessagesInboxPage() {
       </div>
 
       {loading ? (
-        <div className="p-12 text-center text-slate-400 text-sm">Loading conversations...</div>
+        <div className="p-12 text-center text-slate-400 text-sm animate-pulse">Loading conversations...</div>
+      ) : fetchError && conversations.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-red-200 p-8 text-center max-w-md mx-auto">
+          <MessageSquare className="w-10 h-10 text-red-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-900">Unable to load messages</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-4">{fetchError}</p>
+          <button
+            onClick={fetchConversations}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       ) : conversations.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center">
           <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -100,6 +122,7 @@ export default function MessagesInboxPage() {
           </p>
         </div>
       ) : (
+
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 min-h-[500px] overflow-hidden">
           {/* Conversation List Sidebar */}
           <div className="border-r border-slate-200 p-4 space-y-2">

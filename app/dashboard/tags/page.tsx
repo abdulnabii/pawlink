@@ -255,7 +255,22 @@ export default function TagsManagerPage() {
         )}
       </div>
 
+      {fetchError && safeTags.length === 0 && (
+        <div className="bg-white rounded-3xl border border-red-200 p-8 text-center max-w-md mx-auto">
+          <QrCode className="w-10 h-10 text-red-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-900">Unable to load collar tags</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-4">{fetchError}</p>
+          <button
+            onClick={fetchTagsAndPets}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
       {testResult && (
+
         <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-800 text-xs flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />

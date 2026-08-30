@@ -1115,6 +1115,54 @@ export class ResilientDataStore {
     return [...this.medicalRecords];
   }
 
+  private petPhotos: any[] = [];
+
+  async findPetPhotos(petId?: string) {
+    await this.syncFromCloud();
+    if (petId) return this.petPhotos.filter((p) => p.petId === petId);
+    return [...this.petPhotos];
+  }
+
+  async createPetPhoto(data: any) {
+    await this.syncFromCloud();
+    const photo = {
+      id: `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      petId: data.petId,
+      url: data.url,
+      caption: data.caption || null,
+      isPrimary: Boolean(data.isPrimary),
+      createdAt: new Date(),
+    };
+    this.petPhotos.push(photo);
+    await this.syncToCloud();
+    return photo;
+  }
+
+  async updateManyPetPhotos(args: any) {
+    await this.syncFromCloud();
+    let count = 0;
+    this.petPhotos = this.petPhotos.map((p) => {
+      if (!args.where || !args.where.petId || p.petId === args.where.petId) {
+        count++;
+        return { ...p, ...args.data };
+      }
+      return p;
+    });
+    await this.syncToCloud();
+    return { count };
+  }
+
+  async deletePetPhoto(args: any) {
+    await this.syncFromCloud();
+    const id = args?.where?.id;
+    if (id) {
+      this.petPhotos = this.petPhotos.filter((p) => p.id !== id);
+      await this.syncToCloud();
+    }
+    return { success: true };
+  }
+
+
   getRecentScans(take = 10) {
     return this.scanEvents
       .slice(-take)

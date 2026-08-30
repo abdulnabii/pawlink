@@ -41,6 +41,7 @@ function SettingsContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Phone verification state (2-step OTP)
   const [phone, setPhone] = useState("");
@@ -73,8 +74,11 @@ function SettingsContent() {
   const [paymentModalError, setPaymentModalError] = useState<string | null>(null);
 
   const fetchUserData = () => {
+    setLoading(true);
+    setFetchError(null);
+
     Promise.all([
-      fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/auth/me").then((res) => res.json()).catch(() => ({ error: "Failed to load profile" })),
       fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
       fetch("/api/subscription/request").then((res) => res.json()).catch(() => ({ requests: [] })),
     ])
@@ -89,7 +93,10 @@ function SettingsContent() {
           }
           setSenderName(userData.user.name || "");
           setSenderPhone(userData.user.phone || "");
+        } else if (userData?.error) {
+          setFetchError(userData.error);
         }
+
         if (subData?.subscription) {
           setSubscription(subData.subscription);
         }
@@ -105,9 +112,13 @@ function SettingsContent() {
         if (Array.isArray(reqData?.requests)) {
           setUserRequests(reqData.requests);
         }
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setFetchError(err instanceof Error ? err.message : "Failed to load settings");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -128,6 +139,31 @@ function SettingsContent() {
       </div>
     );
   }
+
+  if (fetchError && !user) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn pb-16">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Account, Plans &amp; Alerts</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Manage your membership tier, bank payment verification, and WhatsApp scan notifications.
+          </p>
+        </div>
+        <div className="bg-white rounded-3xl border border-red-200 p-8 text-center max-w-md mx-auto">
+          <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-900">Unable to load settings</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-4">{fetchError}</p>
+          <button
+            onClick={fetchUserData}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();

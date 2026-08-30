@@ -9,29 +9,37 @@ export default function PetsListPage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    let active = true;
+  const fetchPetsData = () => {
+    setLoading(true);
+    setFetchError(null);
 
     Promise.all([
-      fetch("/api/pets").then((res) => res.json()).catch(() => ({ pets: [] })),
+      fetch("/api/pets").then((res) => res.json()).catch(() => ({ error: "Failed to load pets" })),
       fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
     ])
       .then(([petsData, subData]) => {
-        if (active) {
-          if (Array.isArray(petsData?.pets)) setPets(petsData.pets);
-          if (subData?.subscription) setSubscription(subData.subscription);
-          setLoading(false);
+        if (petsData?.error && !Array.isArray(petsData?.pets)) {
+          setFetchError(petsData.error);
+        } else if (Array.isArray(petsData?.pets)) {
+          setPets(petsData.pets);
+        }
+        if (subData?.subscription) {
+          setSubscription(subData.subscription);
         }
       })
-      .catch(() => {
-        if (active) setLoading(false);
+      .catch((err) => {
+        setFetchError(err instanceof Error ? err.message : "Failed to load pets");
+      })
+      .finally(() => {
+        setLoading(false);
       });
+  };
 
-    return () => {
-      active = false;
-    };
+  useEffect(() => {
+    setMounted(true);
+    fetchPetsData();
   }, []);
 
   if (!mounted || loading) {
@@ -49,6 +57,33 @@ export default function PetsListPage() {
       </div>
     );
   }
+
+  if (fetchError && pets.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Your Pets</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Manage profiles, attach QR collar badges, and toggle emergency Lost Mode.
+            </p>
+          </div>
+        </div>
+        <div className="bg-white rounded-3xl border border-red-200 p-8 text-center max-w-md mx-auto">
+          <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-900">Unable to load pets</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-4">{fetchError}</p>
+          <button
+            onClick={fetchPetsData}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   const safePets = Array.isArray(pets) ? pets : [];
   const planId = (subscription?.plan || "FREE").toUpperCase();

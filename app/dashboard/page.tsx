@@ -24,33 +24,46 @@ export default function DashboardOverviewPage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    let active = true;
+  const fetchOverviewData = () => {
+    setLoading(true);
+    setFetchError(null);
 
     Promise.all([
       fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
-      fetch("/api/pets").then((res) => res.json()).catch(() => ({})),
-      fetch("/api/tags").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/pets").then((res) => res.json()).catch(() => ({ error: "Failed to load pets" })),
+      fetch("/api/tags").then((res) => res.json()).catch(() => ({ error: "Failed to load tags" })),
       fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
     ])
       .then(([userData, petsData, tagsData, subData]) => {
-        if (active) {
-          if (userData?.user) setUser(userData.user);
-          if (Array.isArray(petsData?.pets)) setPets(petsData.pets);
-          if (Array.isArray(tagsData?.tags)) setTags(tagsData.tags);
-          if (subData?.subscription) setSubscription(subData.subscription);
-          setLoading(false);
+        if (userData?.user) setUser(userData.user);
+
+        if (petsData?.error && !Array.isArray(petsData?.pets)) {
+          setFetchError(petsData.error);
+        } else if (Array.isArray(petsData?.pets)) {
+          setPets(petsData.pets);
+        }
+
+        if (Array.isArray(tagsData?.tags)) {
+          setTags(tagsData.tags);
+        }
+
+        if (subData?.subscription) {
+          setSubscription(subData.subscription);
         }
       })
-      .catch(() => {
-        if (active) setLoading(false);
+      .catch((err) => {
+        setFetchError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      })
+      .finally(() => {
+        setLoading(false);
       });
+  };
 
-    return () => {
-      active = false;
-    };
+  useEffect(() => {
+    setMounted(true);
+    fetchOverviewData();
   }, []);
 
   const getSafeNumber = (val: any): number => {
@@ -87,10 +100,41 @@ export default function DashboardOverviewPage() {
             </p>
           </div>
         </div>
-        <div className="p-12 text-center text-slate-400 text-sm animate-pulse">Loading dashboard overview...</div>
+        <div className="p-12 text-center text-slate-400 text-sm animate-pulse">
+          Loading dashboard overview...
+        </div>
       </div>
     );
   }
+
+  if (fetchError && safePets.length === 0 && safeTags.length === 0) {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Dashboard Overview
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Real-time status overview of your animals, QR collar tags, and scan notifications.
+            </p>
+          </div>
+        </div>
+        <div className="bg-white rounded-3xl border border-red-200 p-8 text-center max-w-md mx-auto">
+          <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-900">Unable to load dashboard</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-4">{fetchError}</p>
+          <button
+            onClick={fetchOverviewData}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-8 animate-fadeIn">

@@ -62,20 +62,31 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   const [isPublicAlert, setIsPublicAlert] = useState(false);
   // ⚠️ Must live here — above all early returns — to satisfy Rules of Hooks
   const [savingMedical, setSavingMedical] = useState(false);
-
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchPet = () => {
     if (!petId) return;
+    setLoading(true);
+    setFetchError(null);
+
     Promise.all([
-      fetch(`/api/pets/${petId}`).then((res) => res.json()).catch(() => ({})),
+      fetch(`/api/pets/${petId}`).then((res) => res.json()).catch(() => ({ error: "Failed to load pet data" })),
       fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
     ])
       .then(([petData, subData]) => {
-        if (petData?.pet) setPet(petData.pet);
+        if (petData?.error && !petData?.pet) {
+          setFetchError(petData.error);
+        } else if (petData?.pet) {
+          setPet(petData.pet);
+        }
         if (subData?.subscription) setSubscription(subData.subscription);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setFetchError(err instanceof Error ? err.message : "Failed to load pet profile");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -91,6 +102,26 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     );
   }
 
+  if (fetchError && !pet) {
+    return (
+      <div className="bg-white rounded-3xl border border-red-200 p-8 text-center max-w-md mx-auto my-12">
+        <h3 className="text-base font-bold text-slate-900">Unable to load Pet Hub</h3>
+        <p className="text-xs text-slate-500 mt-1 mb-4">{fetchError}</p>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={fetchPet}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+          >
+            Try Again
+          </button>
+          <Link href="/dashboard/pets" className="text-xs font-semibold text-slate-600 hover:underline">
+            Return to Pets List
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!pet) {
     return (
       <div className="p-12 text-center">
@@ -101,6 +132,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
       </div>
     );
   }
+
 
   const handlePurgeLocationHistory = async () => {
     if (!confirm("Are you sure you want to permanently delete all GPS location records for this pet?")) return;
