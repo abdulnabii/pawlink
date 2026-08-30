@@ -26,6 +26,21 @@ interface RecoveryTimelineProps {
   petName: string;
 }
 
+function formatTimelineDate(dateVal: any) {
+  if (!dateVal) return "Recent";
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "Recent";
+    return (
+      d.toLocaleDateString([], { month: "short", day: "numeric" }) +
+      ", " +
+      d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    );
+  } catch {
+    return "Recent";
+  }
+}
+
 export function RecoveryTimeline({ events, petName }: RecoveryTimelineProps) {
   const getEventIcon = (type: string) => {
     switch (type) {
@@ -80,7 +95,7 @@ export function RecoveryTimeline({ events, petName }: RecoveryTimelineProps) {
         <div>
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Clock className="w-5 h-5 text-teal-600" />
-            <span>Recovery Timeline & Audit Feed</span>
+            <span>Recovery Timeline &amp; Audit Feed</span>
           </h3>
           <p className="text-xs text-slate-500">
             Real-time chronological log of scans, location pins, and finder interactions.
@@ -93,10 +108,6 @@ export function RecoveryTimeline({ events, petName }: RecoveryTimelineProps) {
 
       <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
         {events.map((event) => {
-          const date = new Date(event.createdAt);
-          const timeFormatted = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-          const dateFormatted = date.toLocaleDateString([], { month: "short", day: "numeric" });
-
           return (
             <div key={event.id} className="relative group">
               {/* Timeline marker */}
@@ -116,8 +127,8 @@ export function RecoveryTimeline({ events, petName }: RecoveryTimelineProps) {
                       {event.actorType}
                     </span>
                   </div>
-                  <span className="text-xs text-slate-500 font-medium">
-                    {dateFormatted}, {timeFormatted}
+                  <span suppressHydrationWarning className="text-xs text-slate-500 font-medium">
+                    {formatTimelineDate(event.createdAt)}
                   </span>
                 </div>
 

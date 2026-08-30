@@ -128,7 +128,21 @@ export default function TagsManagerPage() {
     fetchTagsAndPets();
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Collar Tags &amp; Badges</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Manage QR collar tags, download printable badges, and test scan notifications.
+            </p>
+          </div>
+        </div>
+        <div className="p-12 text-center text-slate-400 text-sm animate-pulse">Loading tags...</div>
+      </div>
+    );
+  }
 
   const handleTestTag = async (tagId: string) => {
     setTestingTagId(tagId);

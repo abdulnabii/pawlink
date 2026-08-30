@@ -115,7 +115,19 @@ function SettingsContent() {
     fetchUserData();
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || loading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn pb-16">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Account, Plans &amp; Alerts</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Manage your membership tier, bank payment verification, and WhatsApp scan notifications.
+          </p>
+        </div>
+        <div className="p-12 text-center text-slate-400 text-sm animate-pulse">Loading settings...</div>
+      </div>
+    );
+  }
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();

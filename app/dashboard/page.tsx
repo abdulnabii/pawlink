@@ -74,7 +74,23 @@ export default function DashboardOverviewPage() {
   const maxAllowedPets = planId === "PRO" ? 999 : planId === "PLUS" ? 5 : 1;
   const isPetLimitReached = safePets.length >= maxAllowedPets;
 
-  if (!mounted) return null;
+  if (!mounted || loading) {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Dashboard Overview
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Real-time status overview of your animals, QR collar tags, and scan notifications.
+            </p>
+          </div>
+        </div>
+        <div className="p-12 text-center text-slate-400 text-sm animate-pulse">Loading dashboard overview...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fadeIn">

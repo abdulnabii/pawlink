@@ -28,13 +28,21 @@ import { RecoveryTimeline } from "@/components/recovery/RecoveryTimeline";
 
 const RecoveryMap = dynamic(
   () => import("@/components/maps/RecoveryMap").then((mod) => mod.RecoveryMap),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 text-xs animate-pulse">
+        Loading Recovery Map...
+      </div>
+    ),
+  }
 );
 
 export default function PetHubPage({ params }: { params?: { id: string } }) {
   const router = useRouter();
   const routeParams = useParams();
-  const petId = params?.id || (routeParams?.id as string);
+  const rawId = params?.id || routeParams?.id;
+  const petId = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
 
   const [pet, setPet] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
@@ -70,10 +78,12 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     if (petId) fetchPet();
   }, [petId]);
 
-  if (!mounted) return null;
-
-  if (loading) {
-    return <div className="p-12 text-center text-slate-400 text-sm">Loading Pet Hub...</div>;
+  if (!mounted || loading) {
+    return (
+      <div className="p-12 text-center text-slate-400 text-sm animate-pulse">
+        Loading Pet Hub...
+      </div>
+    );
   }
 
   if (!pet) {
@@ -263,7 +273,12 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
         {/* If Lost Mode Active: Context banner */}
         {isLost && activeCase && (
           <div className="mt-6 p-4 rounded-2xl bg-white border border-red-200 shadow-sm text-xs space-y-1 text-red-950">
-            {activeCase.startedAt && <p><strong>🚨 Missing Since:</strong> {new Date(activeCase.startedAt).toLocaleString()}</p>}
+            {activeCase.startedAt && (
+              <p suppressHydrationWarning>
+                <strong>🚨 Missing Since:</strong>{" "}
+                {new Date(activeCase.startedAt).toLocaleString()}
+              </p>
+            )}
             {activeCase.lastSeenLocation && <p><strong>📍 Last Seen:</strong> {activeCase.lastSeenLocation}</p>}
             {activeCase.rewardAmount > 0 && <p><strong>💰 Reward Offered:</strong> PKR {activeCase.rewardAmount}</p>}
             {activeCase.description && <p className="italic">&ldquo;{activeCase.description}&rdquo;</p>}
