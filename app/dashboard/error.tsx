@@ -34,7 +34,14 @@ export default function DashboardError({
         </div>
         <div className="flex items-center justify-center gap-3 pt-2">
           <button
-            onClick={reset}
+            onClick={() => {
+              try {
+                reset();
+              } catch {}
+              if (typeof window !== "undefined") {
+                window.location.reload();
+              }
+            }}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />

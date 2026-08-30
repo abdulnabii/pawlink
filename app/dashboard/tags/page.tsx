@@ -21,8 +21,13 @@ function TagBadge({
   petName: string;
   species: string;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const baseUrl =
-    typeof window !== "undefined" && window.location?.origin
+    mounted && typeof window !== "undefined" && window.location?.origin
       ? window.location.origin
       : "https://pawlink-chi.vercel.app";
   const scanUrl = `${baseUrl}/p/${encodeURIComponent(tagCode)}`;

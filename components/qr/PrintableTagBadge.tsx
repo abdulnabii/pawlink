@@ -11,10 +11,20 @@ interface PrintableTagBadgeProps {
 }
 
 export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBadgeProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const safeTag = tagCode || "";
   const safePet = petName || "Pet";
+  const baseUrl =
+    mounted && typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://pawlink-chi.vercel.app";
+  const scanUrl = `${baseUrl}/p/${encodeURIComponent(safeTag)}`;
   const qrUrl = safeTag
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=512x512&ecc=H&data=${encodeURIComponent(getTagRecoveryUrl(safeTag))}`
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=512x512&ecc=H&data=${encodeURIComponent(scanUrl)}`
     : "";
 
   const handlePrint = () => {
