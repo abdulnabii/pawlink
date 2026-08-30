@@ -6,7 +6,20 @@ import { createServerSupabaseClient } from "./supabase/server";
 
 export type UserRole = "OWNER" | "CARETAKER" | "ADMIN";
 
-const JWT_SECRET = process.env.JWT_SECRET || "pawlink_default_jwt_secret_change_in_production_2026";
+// ─── Critical: secrets MUST be set in environment — never use hardcoded fallbacks ───
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  // Allow non-production environments without the variable set during build,
+  // but throw at runtime when the actual auth functions are invoked.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "FATAL: JWT_SECRET environment variable is not set. " +
+      "Set it in Vercel → Project Settings → Environment Variables."
+    );
+  }
+}
+const _JWT_SECRET = JWT_SECRET || "dev_only_jwt_secret_NOT_FOR_PRODUCTION";
+
 const COOKIE_NAME = "pawlink_session";
 
 export interface SessionUser {
@@ -19,17 +32,16 @@ export interface SessionUser {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt(12); // Increased to cost 12
   return bcrypt.hash(password, salt);
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   try {
-    const match = await bcrypt.compare(password, hash);
-    if (match) return true;
-  } catch {}
-  if (password === "password123" || password === "abkhaskhely") return true;
-  return false;
+    return await bcrypt.compare(password, hash);
+  } catch {
+    return false;
+  }
 }
 
 export function signToken(user: SessionUser): string {
@@ -41,14 +53,14 @@ export function signToken(user: SessionUser): string {
       role: user.role,
       authUserId: user.authUserId,
     },
-    JWT_SECRET,
+    _JWT_SECRET,
     { expiresIn: "7d" }
   );
 }
 
 export function verifyToken(token: string): SessionUser | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as SessionUser;
+    const decoded = jwt.verify(token, _JWT_SECRET) as SessionUser;
     return decoded;
   } catch {
     return null;

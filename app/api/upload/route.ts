@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadToSupabaseStorage, StorageBucket } from "@/lib/supabase/storage";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireAuth } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  // Must be a logged-in user
+  try {
+    await requireAuth();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
   const rateCheck = checkRateLimit(`upload:${ip}`, 10, 60 * 1000);
   if (!rateCheck.success) {
     return NextResponse.json({ error: "Upload rate limit exceeded. Please wait a moment." }, { status: 429 });
   }
+
 
   try {
     const formData = await req.formData();

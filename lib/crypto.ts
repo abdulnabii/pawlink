@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 const TAG_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // No 0, O, 1, I to avoid confusion
-const SALT = process.env.IP_HASH_SALT || "pawlink_default_salt_2026";
+const SALT = process.env.IP_HASH_SALT || "dev_only_ip_salt_NOT_FOR_PRODUCTION";
 
 /**
  * Generates a cryptographically secure, high-entropy Tag Code

@@ -7,10 +7,15 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
-  const rateCheck = checkRateLimit(`login:${ip}`, 30, 60 * 1000);
+  // Tightened: 5 attempts per 15 minutes to prevent brute force
+  const rateCheck = checkRateLimit(`login:${ip}`, 5, 15 * 60 * 1000);
   if (!rateCheck.success) {
-    return NextResponse.json({ error: "Too many login attempts. Please wait 60 seconds." }, { status: 429 });
+    return NextResponse.json(
+      { error: "Too many login attempts. Please wait 15 minutes before trying again." },
+      { status: 429 }
+    );
   }
+
 
   try {
     const body = await req.json();
@@ -97,12 +102,11 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
-    // If user is not found or password doesn't match
-    if (!user) {
-      return NextResponse.json({ error: "No account found with this email. Please check your spelling or register." }, { status: 401 });
-    }
-
-    return NextResponse.json({ error: "Invalid password. Please check your credentials." }, { status: 401 });
+    // Generic error prevents user enumeration — always same message
+    return NextResponse.json(
+      { error: "Invalid email or password. Please check your credentials and try again." },
+      { status: 401 }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Login failed";
     return NextResponse.json({ error: message }, { status: 400 });
