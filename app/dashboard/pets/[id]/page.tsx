@@ -69,11 +69,19 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     setLoading(true);
     setFetchError(null);
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
     Promise.all([
-      fetch(`/api/pets/${petId}`).then((res) => res.json()).catch(() => ({ error: "Failed to load pet data" })),
-      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+      fetch(`/api/pets/${petId}`, { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ error: "Failed to load pet data" })),
+      fetch("/api/subscription", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({})),
     ])
       .then(([petData, subData]) => {
+        clearTimeout(timer);
         if (petData?.error && !petData?.pet) {
           setFetchError(petData.error);
         } else if (petData?.pet) {
@@ -82,6 +90,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
         if (subData?.subscription) setSubscription(subData.subscription);
       })
       .catch((err) => {
+        clearTimeout(timer);
         setFetchError(err instanceof Error ? err.message : "Failed to load pet profile");
       })
       .finally(() => {
@@ -93,6 +102,7 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     setMounted(true);
     if (petId) fetchPet();
   }, [petId]);
+
 
   if (!mounted || loading) {
     return (

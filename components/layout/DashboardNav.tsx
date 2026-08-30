@@ -41,25 +41,43 @@ export function DashboardNav() {
 
   useEffect(() => {
     let isMounted = true;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
     Promise.all([
-      fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
-      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/auth/me", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ error: "UNAUTHORIZED", user: null })),
+      fetch("/api/subscription", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({})),
     ])
       .then(([authData, subData]) => {
+        clearTimeout(timer);
         if (isMounted) {
-          if (authData?.user) setUser(authData.user);
+          if (authData?.user) {
+            setUser(authData.user);
+          } else {
+            // Unauthenticated session - redirect to login
+            router.push("/auth/login");
+          }
           if (subData?.subscription) setSubscription(subData.subscription);
           setLoading(false);
         }
       })
       .catch(() => {
+        clearTimeout(timer);
         if (isMounted) setLoading(false);
       });
 
     return () => {
       isMounted = false;
+      clearTimeout(timer);
+      controller.abort();
     };
-  }, []);
+  }, [router]);
+
 
   const handleLogout = async () => {
     try {

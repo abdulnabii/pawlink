@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Dog,
   QrCode,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function DashboardOverviewPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [pets, setPets] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -30,14 +32,32 @@ export default function DashboardOverviewPage() {
     setLoading(true);
     setFetchError(null);
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
     Promise.all([
-      fetch("/api/auth/me").then((res) => res.json()).catch(() => ({})),
-      fetch("/api/pets").then((res) => res.json()).catch(() => ({ error: "Failed to load pets" })),
-      fetch("/api/tags").then((res) => res.json()).catch(() => ({ error: "Failed to load tags" })),
-      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/auth/me", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ error: "UNAUTHORIZED", user: null })),
+      fetch("/api/pets", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ error: "Failed to load pets" })),
+      fetch("/api/tags", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ error: "Failed to load tags" })),
+      fetch("/api/subscription", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({})),
     ])
       .then(([userData, petsData, tagsData, subData]) => {
-        if (userData?.user) setUser(userData.user);
+        clearTimeout(timer);
+
+        if (!userData?.user) {
+          router.push("/auth/login");
+          return;
+        }
+
+        setUser(userData.user);
 
         if (petsData?.error && !Array.isArray(petsData?.pets)) {
           setFetchError(petsData.error);
@@ -54,12 +74,14 @@ export default function DashboardOverviewPage() {
         }
       })
       .catch((err) => {
+        clearTimeout(timer);
         setFetchError(err instanceof Error ? err.message : "Failed to load dashboard data");
       })
       .finally(() => {
         setLoading(false);
       });
   };
+
 
   useEffect(() => {
     setMounted(true);

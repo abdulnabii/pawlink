@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   QrCode,
   Plus,
@@ -86,6 +87,7 @@ function TagBadge({
 }
 
 export default function TagsManagerPage() {
+  const router = useRouter();
   const [tags, setTags] = useState<any[]>([]);
   const [pets, setPets] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any>(null);
@@ -102,31 +104,54 @@ export default function TagsManagerPage() {
   const [creatingTag, setCreatingTag] = useState(false);
 
   const fetchTagsAndPets = () => {
+    setLoading(true);
     setFetchError(null);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
     Promise.all([
-      fetch("/api/tags")
+      fetch("/api/auth/me", { signal: controller.signal })
         .then((res) => res.json())
-        .catch(() => ({ tags: [] })),
-      fetch("/api/pets")
+        .catch(() => ({ user: null })),
+      fetch("/api/tags", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ tags: [], error: "Failed to load tags" })),
+      fetch("/api/pets", { signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ pets: [] })),
-      fetch("/api/subscription")
+      fetch("/api/subscription", { signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({})),
     ])
-      .then(([tagsData, petsData, subData]) => {
+      .then(([userData, tagsData, petsData, subData]) => {
+        clearTimeout(timer);
+
+        if (!userData?.user) {
+          router.push("/auth/login");
+          return;
+        }
+
         const loadedTags = Array.isArray(tagsData?.tags) ? tagsData.tags : [];
         const loadedPets = Array.isArray(petsData?.pets) ? petsData.pets : [];
+
+        if (tagsData?.error && loadedTags.length === 0) {
+          setFetchError(tagsData.error);
+        }
+
         setTags(loadedTags);
         setPets(loadedPets);
         if (subData?.subscription) setSubscription(subData.subscription);
-        setLoading(false);
       })
       .catch((err) => {
-        setFetchError(String(err));
+        clearTimeout(timer);
+        setFetchError(err instanceof Error ? err.message : "Failed to load tags");
+      })
+      .finally(() => {
         setLoading(false);
       });
   };
+
 
   useEffect(() => {
     setMounted(true);

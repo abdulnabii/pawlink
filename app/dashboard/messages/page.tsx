@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MessageSquare, Send, User, Dog, Clock, ShieldCheck, Loader2 } from "lucide-react";
 
 function formatTime(dateVal: any) {
@@ -15,6 +16,7 @@ function formatTime(dateVal: any) {
 }
 
 export default function MessagesInboxPage() {
+  const router = useRouter();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [activeConv, setActiveConv] = useState<any | null>(null);
@@ -28,25 +30,43 @@ export default function MessagesInboxPage() {
     setLoading(true);
     setFetchError(null);
 
-    fetch("/api/conversations")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.error && !Array.isArray(data?.conversations)) {
-          setFetchError(data.error);
-        } else if (data.conversations && Array.isArray(data.conversations)) {
-          setConversations(data.conversations);
-          if (!activeConvId && data.conversations.length > 0) {
-            setActiveConvId(data.conversations[0].id);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
+    Promise.all([
+      fetch("/api/auth/me", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ user: null })),
+      fetch("/api/conversations", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ conversations: [], error: "Failed to load conversations" })),
+    ])
+      .then(([userData, convData]) => {
+        clearTimeout(timer);
+
+        if (!userData?.user) {
+          router.push("/auth/login");
+          return;
+        }
+
+        if (convData?.error && !Array.isArray(convData?.conversations)) {
+          setFetchError(convData.error);
+        } else if (convData?.conversations && Array.isArray(convData.conversations)) {
+          setConversations(convData.conversations);
+          if (!activeConvId && convData.conversations.length > 0) {
+            setActiveConvId(convData.conversations[0].id);
           }
         }
       })
       .catch((err) => {
+        clearTimeout(timer);
         setFetchError(err instanceof Error ? err.message : "Failed to load messages");
       })
       .finally(() => {
         setLoading(false);
       });
   };
+
 
   useEffect(() => {
     setMounted(true);

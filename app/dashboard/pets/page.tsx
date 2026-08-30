@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Dog, QrCode, ArrowRight, ShieldCheck, AlertTriangle } from "lucide-react";
 
 export default function PetsListPage() {
+  const router = useRouter();
   const [pets, setPets] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -15,11 +17,28 @@ export default function PetsListPage() {
     setLoading(true);
     setFetchError(null);
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
     Promise.all([
-      fetch("/api/pets").then((res) => res.json()).catch(() => ({ error: "Failed to load pets" })),
-      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
+      fetch("/api/auth/me", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ user: null })),
+      fetch("/api/pets", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ error: "Failed to load pets" })),
+      fetch("/api/subscription", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({})),
     ])
-      .then(([petsData, subData]) => {
+      .then(([userData, petsData, subData]) => {
+        clearTimeout(timer);
+
+        if (!userData?.user) {
+          router.push("/auth/login");
+          return;
+        }
+
         if (petsData?.error && !Array.isArray(petsData?.pets)) {
           setFetchError(petsData.error);
         } else if (Array.isArray(petsData?.pets)) {
@@ -30,12 +49,14 @@ export default function PetsListPage() {
         }
       })
       .catch((err) => {
+        clearTimeout(timer);
         setFetchError(err instanceof Error ? err.message : "Failed to load pets");
       })
       .finally(() => {
         setLoading(false);
       });
   };
+
 
   useEffect(() => {
     setMounted(true);

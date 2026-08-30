@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   MessageSquare,
   Mail,
@@ -28,13 +28,14 @@ import { BANK_PAYMENT_CONFIG } from "@/lib/plans";
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<div className="p-12 text-center text-slate-400 text-sm">Loading Settings...</div>}>
+    <Suspense fallback={<div className="p-12 text-center text-slate-400 text-sm animate-pulse">Loading Settings...</div>}>
       <SettingsContent />
     </Suspense>
   );
 }
 
 function SettingsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const upgradeParam = searchParams.get("upgrade")?.toUpperCase();
 
@@ -77,25 +78,37 @@ function SettingsContent() {
     setLoading(true);
     setFetchError(null);
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
     Promise.all([
-      fetch("/api/auth/me").then((res) => res.json()).catch(() => ({ error: "Failed to load profile" })),
-      fetch("/api/subscription").then((res) => res.json()).catch(() => ({})),
-      fetch("/api/subscription/request").then((res) => res.json()).catch(() => ({ requests: [] })),
+      fetch("/api/auth/me", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ error: "UNAUTHORIZED", user: null })),
+      fetch("/api/subscription", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({})),
+      fetch("/api/subscription/request", { signal: controller.signal })
+        .then((res) => res.json())
+        .catch(() => ({ requests: [] })),
     ])
       .then(([userData, subData, reqData]) => {
-        if (userData?.user) {
-          setUser(userData.user);
-          const pref = userData.user.notificationPreference;
-          if (pref) {
-            setPhone(pref.notificationPhone || userData.user.phone || "");
-            setWhatsappEnabled(pref.whatsappEnabled);
-            setEmailEnabled(pref.emailEnabled);
-          }
-          setSenderName(userData.user.name || "");
-          setSenderPhone(userData.user.phone || "");
-        } else if (userData?.error) {
-          setFetchError(userData.error);
+        clearTimeout(timer);
+
+        if (!userData?.user) {
+          router.push("/auth/login");
+          return;
         }
+
+        setUser(userData.user);
+        const pref = userData.user.notificationPreference;
+        if (pref) {
+          setPhone(pref.notificationPhone || userData.user.phone || "");
+          setWhatsappEnabled(pref.whatsappEnabled);
+          setEmailEnabled(pref.emailEnabled);
+        }
+        setSenderName(userData.user.name || "");
+        setSenderPhone(userData.user.phone || "");
 
         if (subData?.subscription) {
           setSubscription(subData.subscription);
@@ -114,12 +127,14 @@ function SettingsContent() {
         }
       })
       .catch((err) => {
+        clearTimeout(timer);
         setFetchError(err instanceof Error ? err.message : "Failed to load settings");
       })
       .finally(() => {
         setLoading(false);
       });
   };
+
 
   useEffect(() => {
     setMounted(true);
