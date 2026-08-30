@@ -486,11 +486,6 @@ function createSelfHealingDb() {
         return await resilientStore.findNotificationPreferenceUnique(args);
       },
     },
-    auditLog: {
-      create: async (args: any) => {
-        return await resilientStore.createAuditLog(args);
-      },
-    },
     subscription: {
       findUnique: async (args: any) => {
         if (rawPrisma) {
@@ -543,7 +538,146 @@ function createSelfHealingDb() {
         return prismaRes || storeRes;
       },
     },
+    report: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).report.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findReports(args);
+      },
+      create: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).report.create(args);
+          } catch {}
+        }
+        return await resilientStore.createReport(args);
+      },
+      update: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).report.update(args);
+          } catch {}
+        }
+        return await resilientStore.updateReport(args);
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).report.count(args);
+          } catch {}
+        }
+        return await resilientStore.countReports(args);
+      },
+    },
+    supportTicket: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).supportTicket.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findSupportTickets(args);
+      },
+      create: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).supportTicket.create(args);
+          } catch {}
+        }
+        return await resilientStore.createSupportTicket(args);
+      },
+      update: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).supportTicket.update(args);
+          } catch {}
+        }
+        return await resilientStore.updateSupportTicket(args);
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).supportTicket.count(args);
+          } catch {}
+        }
+        return await resilientStore.countSupportTickets(args);
+      },
+    },
+    announcement: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).announcement.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findAnnouncements(args);
+      },
+      create: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).announcement.create(args);
+          } catch {}
+        }
+        return await resilientStore.createAnnouncement(args);
+      },
+      update: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).announcement.update(args);
+          } catch {}
+        }
+        return await resilientStore.updateAnnouncement(args);
+      },
+    },
+    featureFlag: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).featureFlag.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findFeatureFlags();
+      },
+      update: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).featureFlag.update(args);
+          } catch {}
+        }
+        return await resilientStore.updateFeatureFlag(args);
+      },
+    },
+    auditLog: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.auditLog.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findAuditLogs(args);
+      },
+      create: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.auditLog.create(args);
+          } catch {}
+        }
+        return await resilientStore.createAuditLog(args);
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.auditLog.count(args);
+          } catch {}
+        }
+        return (await resilientStore.findAuditLogs(args)).length;
+      },
+    },
   } as unknown as PrismaClient;
+
 }
 
 export const db = createSelfHealingDb();

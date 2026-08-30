@@ -22,6 +22,11 @@ export class ResilientDataStore {
   private paymentRequests: any[] = [];
   private auditLogs: any[] = [];
   private medicalRecords: any[] = [];
+  private petPhotos: any[] = [];
+  private reports: any[] = [];
+  private supportTickets: any[] = [];
+  private announcements: any[] = [];
+  private featureFlags: any[] = [];
 
   private lastCloudSync = 0;
   private isSyncing = false;
@@ -29,6 +34,7 @@ export class ResilientDataStore {
   constructor() {
     this.initSeed();
   }
+
 
   private initSeed() {
     const ownerId = "usr_owner_001";
@@ -865,17 +871,6 @@ export class ResilientDataStore {
     return notification;
   }
 
-  // --- AUDIT LOGS ---
-  async createAuditLog(args: any) {
-    const log = {
-      id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      ...args.data,
-      createdAt: new Date(),
-    };
-    this.auditLogs.push(log);
-    return log;
-  }
-
   // --- SUBSCRIPTION METHODS ---
   async getUserSubscription(userId: string) {
     await this.syncFromCloud();
@@ -1115,8 +1110,6 @@ export class ResilientDataStore {
     return [...this.medicalRecords];
   }
 
-  private petPhotos: any[] = [];
-
   async findPetPhotos(petId?: string) {
     await this.syncFromCloud();
     if (petId) return this.petPhotos.filter((p) => p.petId === petId);
@@ -1163,6 +1156,174 @@ export class ResilientDataStore {
   }
 
 
+  async findReports(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.reports];
+    if (args?.where?.status) {
+      result = result.filter((r) => r.status === args.where.status);
+    }
+    if (args?.take) {
+      result = result.slice(0, args.take);
+    }
+    return result;
+  }
+
+  async createReport(args: any) {
+    await this.syncFromCloud();
+    const report = {
+      id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      status: args.data.status || "OPEN",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.reports.push(report);
+    await this.syncToCloud();
+    return report;
+  }
+
+  async updateReport(args: any) {
+    await this.syncFromCloud();
+    const rep = this.reports.find((r) => r.id === args?.where?.id);
+    if (!rep) return null;
+    this.applyPrismaData(rep, args.data);
+    rep.updatedAt = new Date();
+    await this.syncToCloud();
+    return rep;
+  }
+
+  async countReports(args?: any) {
+    await this.syncFromCloud();
+    if (args?.where?.status) {
+      return this.reports.filter((r) => r.status === args.where.status).length;
+    }
+    return this.reports.length;
+  }
+
+  // Support Tickets
+  async findSupportTickets(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.supportTickets];
+    if (args?.where?.status) {
+      result = result.filter((t) => t.status === args.where.status);
+    }
+    if (args?.take) {
+      result = result.slice(0, args.take);
+    }
+    return result;
+  }
+
+  async createSupportTicket(args: any) {
+    await this.syncFromCloud();
+    const ticket = {
+      id: `tkt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      status: args.data.status || "OPEN",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.supportTickets.push(ticket);
+    await this.syncToCloud();
+    return ticket;
+  }
+
+  async updateSupportTicket(args: any) {
+    await this.syncFromCloud();
+    const tkt = this.supportTickets.find((t) => t.id === args?.where?.id);
+    if (!tkt) return null;
+    this.applyPrismaData(tkt, args.data);
+    tkt.updatedAt = new Date();
+    await this.syncToCloud();
+    return tkt;
+  }
+
+  async countSupportTickets(args?: any) {
+    await this.syncFromCloud();
+    if (args?.where?.status) {
+      return this.supportTickets.filter((t) => t.status === args.where.status).length;
+    }
+    return this.supportTickets.length;
+  }
+
+  // Announcements
+  async findAnnouncements(args?: any) {
+    await this.syncFromCloud();
+    return [...this.announcements];
+  }
+
+  async createAnnouncement(args: any) {
+    await this.syncFromCloud();
+    const ann = {
+      id: `ann_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      status: args.data.status || "ACTIVE",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.announcements.push(ann);
+    await this.syncToCloud();
+    return ann;
+  }
+
+  async updateAnnouncement(args: any) {
+    await this.syncFromCloud();
+    const ann = this.announcements.find((a) => a.id === args?.where?.id);
+    if (!ann) return null;
+    this.applyPrismaData(ann, args.data);
+    ann.updatedAt = new Date();
+    await this.syncToCloud();
+    return ann;
+  }
+
+  // Feature Flags
+  async findFeatureFlags() {
+    await this.syncFromCloud();
+    if (this.featureFlags.length === 0) {
+      this.featureFlags = [
+        { id: "ff_1", key: "WHATSAPP_ALERTS", name: "WhatsApp Scan Alerts", description: "Send real-time alerts via WhatsApp on QR scan", enabled: true, updatedAt: new Date() },
+        { id: "ff_2", key: "NFC_SUPPORT", name: "NFC Tag Support", description: "Enable high-frequency NFC tag tap routing", enabled: true, updatedAt: new Date() },
+        { id: "ff_3", key: "GPS_RECOVERY", name: "GPS Recovery Maps", description: "Interactive Leaflet live finder location sharing", enabled: true, updatedAt: new Date() },
+        { id: "ff_4", key: "FINDER_CHAT", name: "Finder In-App Chat", description: "Encrypted direct messaging between finder and pet owner", enabled: true, updatedAt: new Date() },
+        { id: "ff_5", key: "BANK_PAYMENT_VERIFICATION", name: "Meezan Bank Raast Payments", description: "Manual offline bank transfer verification flow", enabled: true, updatedAt: new Date() },
+      ];
+    }
+    return [...this.featureFlags];
+  }
+
+  async updateFeatureFlag(args: any) {
+    await this.syncFromCloud();
+    const flag = this.featureFlags.find((f) => f.key === args?.where?.key || f.id === args?.where?.id);
+    if (flag) {
+      this.applyPrismaData(flag, args.data);
+      flag.updatedAt = new Date();
+      await this.syncToCloud();
+      return flag;
+    }
+    return null;
+  }
+
+  // Audit Logs
+  async findAuditLogs(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.auditLogs];
+    if (args?.take) {
+      result = result.slice(0, args.take);
+    }
+    return result;
+  }
+
+  async createAuditLog(args: any) {
+    await this.syncFromCloud();
+    const log = {
+      id: `aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...args.data,
+      createdAt: new Date(),
+    };
+    this.auditLogs.unshift(log);
+    await this.syncToCloud();
+    return log;
+  }
+
   getRecentScans(take = 10) {
     return this.scanEvents
       .slice(-take)
@@ -1193,3 +1354,4 @@ export class ResilientDataStore {
 }
 
 export const resilientStore = new ResilientDataStore();
+

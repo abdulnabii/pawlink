@@ -3,8 +3,10 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { createServerSupabaseClient } from "./supabase/server";
+import { UserRole, ADMIN_ROLES, AdminSection, hasAdminPermission } from "./permissions";
 
-export type UserRole = "OWNER" | "CARETAKER" | "ADMIN";
+export type { UserRole, AdminSection };
+export { ADMIN_ROLES, hasAdminPermission };
 
 // Resolved lazily — never throw at module load time (breaks Vercel static generation)
 function getJwtSecret(): string {
@@ -22,7 +24,6 @@ function getJwtSecret(): string {
 }
 
 const COOKIE_NAME = "pawlink_session";
-
 
 export interface SessionUser {
   id: string;
@@ -57,7 +58,7 @@ export function isAdminEmail(email?: string | null): boolean {
 }
 
 export function signToken(user: SessionUser): string {
-  const role = isAdminEmail(user.email) ? "ADMIN" : user.role;
+  const role = isAdminEmail(user.email) ? "SUPER_ADMIN" : user.role;
   return jwt.sign(
     {
       id: user.id,
@@ -75,7 +76,7 @@ export function verifyToken(token: string): SessionUser | null {
   try {
     const decoded = jwt.verify(token, getJwtSecret()) as SessionUser;
     if (decoded && isAdminEmail(decoded.email)) {
-      decoded.role = "ADMIN";
+      decoded.role = "SUPER_ADMIN";
     }
     return decoded;
   } catch {
@@ -95,7 +96,7 @@ export async function getSession(): Promise<SessionUser | null> {
       const verified = verifyToken(token);
       if (verified) {
         if (isAdminEmail(verified.email)) {
-          verified.role = "ADMIN";
+          verified.role = "SUPER_ADMIN";
         }
         return verified;
       }
@@ -118,7 +119,7 @@ export async function getSession(): Promise<SessionUser | null> {
           },
         });
 
-        const effectiveRole = isAdminEmail(sbUser.email) ? "ADMIN" : "OWNER";
+        const effectiveRole = isAdminEmail(sbUser.email) ? "SUPER_ADMIN" : "OWNER";
 
         if (!appUser) {
           appUser = await db.user.create({
@@ -144,7 +145,7 @@ export async function getSession(): Promise<SessionUser | null> {
           id: appUser.id,
           email: appUser.email,
           name: appUser.name,
-          role: isAdminEmail(appUser.email) ? "ADMIN" : appUser.role,
+          role: isAdminEmail(appUser.email) ? "SUPER_ADMIN" : appUser.role,
           phone: appUser.phone,
           authUserId: sbUser.id,
         };
@@ -165,13 +166,25 @@ export async function requireAuth(): Promise<SessionUser> {
   return user;
 }
 
-export async function requireAdmin(): Promise<SessionUser> {
+export async function requireAdmin(
+  section?: AdminSection,
+  isWriteAction: boolean = false
+): Promise<SessionUser> {
   const user = await requireAuth();
-  if (user.role !== "ADMIN" && !isAdminEmail(user.email)) {
+  const userRole = (isAdminEmail(user.email) ? "SUPER_ADMIN" : user.role) as UserRole;
+  
+  const isAnyAdmin = ADMIN_ROLES.includes(userRole) || userRole === "ADMIN" || isAdminEmail(user.email);
+  if (!isAnyAdmin) {
     throw new Error("FORBIDDEN_ADMIN_REQUIRED");
   }
-  return { ...user, role: "ADMIN" };
+
+  if (section && !hasAdminPermission(userRole, section, isWriteAction)) {
+    throw new Error(`FORBIDDEN_PERMISSION_REQUIRED_${section.toUpperCase()}`);
+  }
+
+  return { ...user, role: userRole };
 }
+
 
 
 export async function setSessionCookie(user: SessionUser) {
