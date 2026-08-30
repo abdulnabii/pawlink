@@ -6,21 +6,23 @@ import { createServerSupabaseClient } from "./supabase/server";
 
 export type UserRole = "OWNER" | "CARETAKER" | "ADMIN";
 
-// ─── Critical: secrets MUST be set in environment — never use hardcoded fallbacks ───
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  // Allow non-production environments without the variable set during build,
-  // but throw at runtime when the actual auth functions are invoked.
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "FATAL: JWT_SECRET environment variable is not set. " +
-      "Set it in Vercel → Project Settings → Environment Variables."
-    );
+// Resolved lazily — never throw at module load time (breaks Vercel static generation)
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[PawLink] FATAL: JWT_SECRET env var is not set. " +
+        "Go to Vercel → Project Settings → Environment Variables and add JWT_SECRET."
+      );
+    }
+    return "dev_only_jwt_secret_NOT_FOR_PRODUCTION";
   }
+  return secret;
 }
-const _JWT_SECRET = JWT_SECRET || "dev_only_jwt_secret_NOT_FOR_PRODUCTION";
 
 const COOKIE_NAME = "pawlink_session";
+
 
 export interface SessionUser {
   id: string;
@@ -53,14 +55,14 @@ export function signToken(user: SessionUser): string {
       role: user.role,
       authUserId: user.authUserId,
     },
-    _JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: "7d" }
   );
 }
 
 export function verifyToken(token: string): SessionUser | null {
   try {
-    const decoded = jwt.verify(token, _JWT_SECRET) as SessionUser;
+    const decoded = jwt.verify(token, getJwtSecret()) as SessionUser;
     return decoded;
   } catch {
     return null;
