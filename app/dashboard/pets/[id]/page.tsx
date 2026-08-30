@@ -54,12 +54,15 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   const [purgingLocations, setPurgingLocations] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // New medical record form state
+  // Medical record form state
   const [showAddMedical, setShowAddMedical] = useState(false);
   const [medicalTitle, setMedicalTitle] = useState("");
   const [medicalType, setMedicalType] = useState("VACCINATION");
   const [medicalDescription, setMedicalDescription] = useState("");
   const [isPublicAlert, setIsPublicAlert] = useState(false);
+  // ⚠️ Must live here — above all early returns — to satisfy Rules of Hooks
+  const [savingMedical, setSavingMedical] = useState(false);
+
 
   const fetchPet = () => {
     if (!petId) return;
@@ -115,7 +118,6 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     }
   };
 
-  const [savingMedical, setSavingMedical] = useState(false);
 
   const handleAddMedical = async (e: React.FormEvent) => {
     e.preventDefault();
