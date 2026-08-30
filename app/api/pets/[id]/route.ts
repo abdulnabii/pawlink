@@ -17,6 +17,9 @@ export async function GET(
         userId: user.id,
       },
       include: {
+        photos: {
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
+        },
         tagAssignments: {
           where: { unassignedAt: null },
           include: { tag: true },

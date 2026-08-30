@@ -25,6 +25,8 @@ import dynamic from "next/dynamic";
 import { LostModeModal } from "@/components/recovery/LostModeModal";
 import { PrintableTagBadge } from "@/components/qr/PrintableTagBadge";
 import { RecoveryTimeline } from "@/components/recovery/RecoveryTimeline";
+import { PetPhotoGallery } from "@/components/pets/PetPhotoGallery";
+
 
 const RecoveryMap = dynamic(
   () => import("@/components/maps/RecoveryMap").then((mod) => mod.RecoveryMap),
@@ -155,7 +157,9 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   const locationEvents = Array.isArray(activeCase?.locationEvents) ? activeCase.locationEvents : [];
   const medicalRecords = Array.isArray(pet.medicalRecords) ? pet.medicalRecords : [];
   const recoveryEvents = Array.isArray(pet.recoveryEvents) ? pet.recoveryEvents : [];
+  const photos = Array.isArray(pet.photos) ? pet.photos : [];
   const speciesLower = (pet.species || "").toLowerCase();
+
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -285,6 +289,13 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
           </div>
         )}
       </div>
+
+      {/* PHOTO GALLERY */}
+      <PetPhotoGallery
+        petId={pet.id}
+        photos={photos}
+        onUpdate={fetchPet}
+      />
 
       {/* 2-COLUMN GRID: MAP & TIMELINE */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -10,12 +10,13 @@ import {
   Settings,
   ShieldAlert,
   LogOut,
-  BellRing,
   CheckCircle2,
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { NotificationCenter } from "@/components/layout/NotificationCenter";
+
 
 interface UserProfile {
   id: string;
@@ -95,9 +96,12 @@ export function DashboardNav() {
               Paw<span className="text-teal-400">Link</span>
             </span>
           </Link>
-          <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">
-            SaaS Hub
-          </span>
+          <div className="flex items-center gap-2">
+            <NotificationCenter />
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">
+              SaaS Hub
+            </span>
+          </div>
         </div>
 
         {/* Navigation Items */}
