@@ -77,9 +77,10 @@ export function DashboardNav() {
     { name: "Settings & Alerts", href: "/dashboard/settings", icon: Settings },
   ];
 
-  if (user?.role === "ADMIN") {
+  if (user?.role === "ADMIN" || user?.email?.toLowerCase() === "abdulnabi.khaskheli@gmail.com") {
     navItems.push({ name: "Admin Portal", href: "/admin", icon: ShieldAlert });
   }
+
 
   const isWhatsAppVerified = user?.notificationPreference?.whatsappVerified;
 

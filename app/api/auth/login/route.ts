@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPassword, setSessionCookie } from "@/lib/auth";
+import { verifyPassword, setSessionCookie, isAdminEmail } from "@/lib/auth";
 import { LoginInputSchema } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -15,7 +15,6 @@ export async function POST(req: NextRequest) {
       { status: 429 }
     );
   }
-
 
   try {
     const body = await req.json();
@@ -32,11 +31,18 @@ export async function POST(req: NextRequest) {
     if (user && user.passwordHash) {
       const isValid = await verifyPassword(password, user.passwordHash);
       if (isValid) {
+        const effectiveRole = isAdminEmail(user.email) ? "ADMIN" : user.role;
+
+        // Auto-upgrade role in DB if designated admin
+        if (isAdminEmail(user.email) && user.role !== "ADMIN") {
+          db.user.update({ where: { id: user.id }, data: { role: "ADMIN" } }).catch(() => {});
+        }
+
         const sessionUser = {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role,
+          role: effectiveRole,
           phone: user.phone,
           authUserId: user.authUserId,
         };
@@ -68,13 +74,15 @@ export async function POST(req: NextRequest) {
             });
           }
 
+          const effectiveRole = isAdminEmail(email) ? "ADMIN" : "OWNER";
+
           if (!user) {
             user = await db.user.create({
               data: {
                 authUserId: sbData.user.id,
                 email,
                 name: sbData.user.user_metadata?.name || email.split("@")[0],
-                role: "OWNER",
+                role: effectiveRole,
                 notificationPreference: {
                   create: {
                     whatsappEnabled: true,
@@ -84,13 +92,15 @@ export async function POST(req: NextRequest) {
                 },
               },
             });
+          } else if (isAdminEmail(user.email) && user.role !== "ADMIN") {
+            db.user.update({ where: { id: user.id }, data: { role: "ADMIN" } }).catch(() => {});
           }
 
           const sessionUser = {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: effectiveRole,
             phone: user.phone,
             authUserId: sbData.user.id,
           };
@@ -112,3 +122,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

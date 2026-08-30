@@ -46,13 +46,24 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   }
 }
 
+export const ADMIN_EMAILS = [
+  "abdulnabi.khaskheli@gmail.com",
+  ...(process.env.ADMIN_EMAIL ? [process.env.ADMIN_EMAIL.toLowerCase()] : []),
+];
+
+export function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
+
 export function signToken(user: SessionUser): string {
+  const role = isAdminEmail(user.email) ? "ADMIN" : user.role;
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role,
       authUserId: user.authUserId,
     },
     getJwtSecret(),
@@ -63,6 +74,9 @@ export function signToken(user: SessionUser): string {
 export function verifyToken(token: string): SessionUser | null {
   try {
     const decoded = jwt.verify(token, getJwtSecret()) as SessionUser;
+    if (decoded && isAdminEmail(decoded.email)) {
+      decoded.role = "ADMIN";
+    }
     return decoded;
   } catch {
     return null;
@@ -80,6 +94,9 @@ export async function getSession(): Promise<SessionUser | null> {
     if (token) {
       const verified = verifyToken(token);
       if (verified) {
+        if (isAdminEmail(verified.email)) {
+          verified.role = "ADMIN";
+        }
         return verified;
       }
     }
@@ -101,6 +118,8 @@ export async function getSession(): Promise<SessionUser | null> {
           },
         });
 
+        const effectiveRole = isAdminEmail(sbUser.email) ? "ADMIN" : "OWNER";
+
         if (!appUser) {
           appUser = await db.user.create({
             data: {
@@ -108,7 +127,7 @@ export async function getSession(): Promise<SessionUser | null> {
               email: sbUser.email.toLowerCase(),
               name: sbUser.user_metadata?.name || sbUser.email.split("@")[0],
               phone: sbUser.phone || null,
-              role: "OWNER",
+              role: effectiveRole,
               notificationPreference: {
                 create: {
                   whatsappEnabled: true,
@@ -125,7 +144,7 @@ export async function getSession(): Promise<SessionUser | null> {
           id: appUser.id,
           email: appUser.email,
           name: appUser.name,
-          role: appUser.role,
+          role: isAdminEmail(appUser.email) ? "ADMIN" : appUser.role,
           phone: appUser.phone,
           authUserId: sbUser.id,
         };
@@ -148,11 +167,12 @@ export async function requireAuth(): Promise<SessionUser> {
 
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireAuth();
-  if (user.role !== "ADMIN") {
+  if (user.role !== "ADMIN" && !isAdminEmail(user.email)) {
     throw new Error("FORBIDDEN_ADMIN_REQUIRED");
   }
-  return user;
+  return { ...user, role: "ADMIN" };
 }
+
 
 export async function setSessionCookie(user: SessionUser) {
   const token = signToken(user);

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function GET() {
@@ -25,5 +25,10 @@ export async function GET() {
     },
   });
 
+  if (user && isAdminEmail(user.email)) {
+    user.role = "ADMIN";
+  }
+
   return NextResponse.json({ user });
 }
+

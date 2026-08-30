@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { hashPassword, setSessionCookie } from "@/lib/auth";
+import { hashPassword, setSessionCookie, isAdminEmail } from "@/lib/auth";
 import { RegisterInputSchema } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await hashPassword(validated.password);
+    const effectiveRole = isAdminEmail(validated.email) ? "ADMIN" : "OWNER";
 
     // 2. Create PawLink application User
     const user = await db.user.create({
@@ -57,7 +58,9 @@ export async function POST(req: NextRequest) {
         email: validated.email.toLowerCase(),
         passwordHash,
         phone: validated.phone || null,
+        role: effectiveRole,
         notificationPreference: {
+
           create: {
             whatsappEnabled: true,
             whatsappVerified: false,
