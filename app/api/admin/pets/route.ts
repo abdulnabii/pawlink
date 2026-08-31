@@ -56,6 +56,16 @@ export async function GET(req: NextRequest) {
     const total = filtered.length;
     const paginated = filtered.slice(skip, skip + pageSize);
 
+    // Fallback hydration for user if not populated
+    for (const p of paginated as any[]) {
+      if (!p.user && p.userId) {
+        const u = await db.user.findUnique({ where: { id: p.userId } });
+        if (u) {
+          p.user = { id: u.id, name: u.name, email: u.email, phone: u.phone };
+        }
+      }
+    }
+
     return NextResponse.json({
       pets: sanitizePrisma(paginated),
       pagination: {
@@ -66,8 +76,16 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
+    console.error("[Admin Pets API Error]:", err);
     const message = err instanceof Error ? err.message : "Failed to load pets";
-    const status = message.includes("FORBIDDEN") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("FORBIDDEN") || message.includes("UNAUTHORIZED")) {
+      const status = message.includes("FORBIDDEN") ? 403 : 401;
+      return NextResponse.json({ error: message }, { status });
+    }
+    return NextResponse.json({
+      error: "Unable to load pets at this time. Please refresh.",
+      pets: [],
+      pagination: { total: 0, page: 1, pageSize: 20, totalPages: 1 }
+    }, { status: 500 });
   }
 }

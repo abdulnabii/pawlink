@@ -504,6 +504,7 @@ export class ResilientDataStore {
   }
 
   private hydratePet(pet: any) {
+    const owner = this.users.find((u) => u.id === pet.userId);
     const assignments = this.tagAssignments
       .filter((a) => a.petId === pet.id && !a.unassignedAt)
       .map((a) => {
@@ -525,12 +526,25 @@ export class ResilientDataStore {
 
     return {
       ...pet,
+      user: owner
+        ? {
+            id: owner.id,
+            name: owner.name,
+            phone: owner.phone,
+            email: owner.email,
+            role: owner.role,
+          }
+        : null,
       tagAssignments: assignments,
       recoveryCases,
       recoveryEvents,
       conversations,
       medicalRecords: medicalRecords.length > 0 ? medicalRecords : (pet.medicalRecords || []),
       photos: pet.photos || [],
+      _count: {
+        recoveryEvents: recoveryEvents.length,
+        conversations: conversations.length,
+      },
     };
   }
 
@@ -642,7 +656,46 @@ export class ResilientDataStore {
     if (args?.where?.status) {
       result = result.filter((c) => c.status === args.where.status);
     }
-    return result;
+    return result.map((c) => {
+      const pet = this.pets.find((p) => p.id === c.petId);
+      const locs = this.locationEvents.filter((l) => l.recoveryCaseId === c.id);
+      const convs = this.conversations.filter((cv) => cv.recoveryCaseId === c.id || cv.petId === c.petId);
+      const events = this.recoveryEvents.filter((e) => e.petId === c.petId);
+      return {
+        ...c,
+        pet: pet ? this.hydratePet(pet) : null,
+        locationEvents: locs,
+        conversations: convs,
+        recoveryEvents: events,
+      };
+    });
+  }
+
+  async findRecoveryCaseUnique(args: any) {
+    await this.syncFromCloud();
+    const id = args?.where?.id;
+    if (!id) return null;
+    const c = this.recoveryCases.find((x) => x.id === id);
+    if (!c) return null;
+    const pet = this.pets.find((p) => p.id === c.petId);
+    const locs = this.locationEvents.filter((l) => l.recoveryCaseId === c.id);
+    const convs = this.conversations.filter((cv) => cv.recoveryCaseId === c.id || cv.petId === c.petId);
+    const events = this.recoveryEvents.filter((e) => e.petId === c.petId);
+    return {
+      ...c,
+      pet: pet ? this.hydratePet(pet) : null,
+      locationEvents: locs,
+      conversations: convs,
+      recoveryEvents: events,
+    };
+  }
+
+  async countRecoveryCases(args?: any) {
+    await this.syncFromCloud();
+    if (args?.where?.status) {
+      return this.recoveryCases.filter((c) => c.status === args.where.status).length;
+    }
+    return this.recoveryCases.length;
   }
 
   async createRecoveryCase(args: any) {
@@ -682,6 +735,36 @@ export class ResilientDataStore {
   }
 
   // --- SCAN EVENTS ---
+  async findScanEvents(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.scanEvents];
+    if (args?.where?.tagId) {
+      result = result.filter((s) => s.tagId === args.where.tagId);
+    }
+    result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    if (args?.skip) {
+      result = result.slice(args.skip);
+    }
+    if (args?.take) {
+      result = result.slice(0, args.take);
+    }
+    return result.map((s) => {
+      const tag = this.tags.find((t) => t.id === s.tagId);
+      return {
+        ...s,
+        tag: tag ? this.hydrateTag(tag) : null,
+      };
+    });
+  }
+
+  async countScanEvents(args?: any) {
+    await this.syncFromCloud();
+    if (args?.where?.tagId) {
+      return this.scanEvents.filter((s) => s.tagId === args.where.tagId).length;
+    }
+    return this.scanEvents.length;
+  }
+
   async createScanEvent(args: any) {
     await this.syncFromCloud();
     const scan = {
@@ -701,6 +784,23 @@ export class ResilientDataStore {
   }
 
   // --- LOCATION EVENTS ---
+  async findLocationEvents(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.locationEvents];
+    if (args?.where?.recoveryCaseId) {
+      result = result.filter((l) => l.recoveryCaseId === args.where.recoveryCaseId);
+    }
+    return result;
+  }
+
+  async countLocationEvents(args?: any) {
+    await this.syncFromCloud();
+    if (args?.where?.recoveryCaseId) {
+      return this.locationEvents.filter((l) => l.recoveryCaseId === args.where.recoveryCaseId).length;
+    }
+    return this.locationEvents.length;
+  }
+
   async createLocationEvent(args: any) {
     await this.syncFromCloud();
     const loc = {
@@ -780,6 +880,20 @@ export class ResilientDataStore {
     return msg;
   }
 
+  async findMessages(args?: any) {
+    await this.syncFromCloud();
+    let result: any[] = [];
+    this.conversations.forEach((c) => {
+      if (Array.isArray(c.messages)) {
+        result.push(...c.messages);
+      }
+    });
+    if (args?.where?.conversationId) {
+      result = result.filter((m) => m.conversationId === args.where.conversationId);
+    }
+    return result;
+  }
+
   private hydrateConversation(conv: any) {
     const pet = this.pets.find((p) => p.id === conv.petId);
     const owner = pet ? this.users.find((u) => u.id === pet.userId) : null;
@@ -851,24 +965,101 @@ export class ResilientDataStore {
   }
 
   // --- NOTIFICATION JOBS & NOTIFICATIONS ---
+  async findNotificationJobs(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.notificationJobs];
+    if (args?.where?.status) {
+      result = result.filter((j) => j.status === args.where.status);
+    }
+    result.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    if (args?.take) {
+      result = result.slice(0, args.take);
+    }
+    return result;
+  }
+
+  async findNotificationJobUnique(args: any) {
+    await this.syncFromCloud();
+    const id = args?.where?.id;
+    if (!id) return null;
+    return this.notificationJobs.find((j) => j.id === id) || null;
+  }
+
+  async countNotificationJobs(args?: any) {
+    await this.syncFromCloud();
+    if (args?.where?.status) {
+      return this.notificationJobs.filter((j) => j.status === args.where.status).length;
+    }
+    return this.notificationJobs.length;
+  }
+
   async createNotificationJob(args: any) {
+    await this.syncFromCloud();
     const job = {
       id: `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
+      attempts: args.data.attempts || 0,
+      maxAttempts: args.data.maxAttempts || 4,
+      status: args.data.status || "QUEUED",
       createdAt: new Date(),
+      scheduledAt: args.data.scheduledAt || new Date(),
     };
-    this.notificationJobs.push(job);
+    this.notificationJobs.unshift(job);
+    await this.syncToCloud();
     return job;
   }
 
+  async updateNotificationJob(args: any) {
+    await this.syncFromCloud();
+    const job = this.notificationJobs.find((j) => j.id === args.where?.id);
+    if (!job) return null;
+    this.applyPrismaData(job, args.data);
+    await this.syncToCloud();
+    return job;
+  }
+
+  async findNotifications(args?: any) {
+    await this.syncFromCloud();
+    let result = [...this.notifications];
+    if (args?.where?.userId) {
+      result = result.filter((n) => n.userId === args.where.userId);
+    }
+    return result;
+  }
+
   async createNotification(args: any) {
+    await this.syncFromCloud();
     const notification = {
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
       createdAt: new Date(),
     };
-    this.notifications.push(notification);
+    this.notifications.unshift(notification);
+    await this.syncToCloud();
     return notification;
+  }
+
+  async updateNotification(args: any) {
+    await this.syncFromCloud();
+    const n = this.notifications.find((x) => x.id === args.where?.id);
+    if (!n) return null;
+    Object.assign(n, args.data);
+    await this.syncToCloud();
+    return n;
+  }
+
+  async updateManyNotifications(args: any) {
+    await this.syncFromCloud();
+    let count = 0;
+    const { where, data } = args;
+    this.notifications.forEach((n) => {
+      if (!where?.userId || n.userId === where.userId) {
+        Object.assign(n, data);
+        count++;
+      }
+    });
+    if (count > 0) await this.syncToCloud();
+    return { count };
   }
 
   // --- SUBSCRIPTION METHODS ---

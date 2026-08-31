@@ -113,12 +113,12 @@ export function AdminNotificationsTab() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">Event Type</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Attempts</th>
-                <th className="px-6 py-3.5">Scheduled / Processed</th>
-                <th className="px-6 py-3.5">Error Info</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-3.5 min-w-[150px]">Event Type</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Status</th>
+                <th className="px-6 py-3.5 min-w-[100px]">Attempts</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Scheduled / Processed</th>
+                <th className="px-6 py-3.5 min-w-[180px]">Error Info</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[90px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -136,7 +136,7 @@ export function AdminNotificationsTab() {
                 </tr>
               ) : (
                 jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={job.id} className="group hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{job.type}</div>
                       <div className="text-[10px] text-slate-400 font-mono">{job.id}</div>
@@ -168,7 +168,7 @@ export function AdminNotificationsTab() {
                     <td className="px-6 py-4 text-[10px] text-red-600 max-w-xs truncate">
                       {job.lastError || "None"}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                       {job.status === "FAILED" && (
                         <button
                           onClick={() => handleRetryJob(job.id)}

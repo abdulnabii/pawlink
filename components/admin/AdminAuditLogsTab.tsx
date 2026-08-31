@@ -94,11 +94,11 @@ export function AdminAuditLogsTab() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">Timestamp</th>
-                <th className="px-6 py-3.5">Action Executed</th>
-                <th className="px-6 py-3.5">Actor (Admin)</th>
-                <th className="px-6 py-3.5">Entity</th>
-                <th className="px-6 py-3.5 text-right">Payload</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Timestamp</th>
+                <th className="px-6 py-3.5 min-w-[180px]">Action Executed</th>
+                <th className="px-6 py-3.5 min-w-[160px]">Actor (Admin)</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Entity</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[100px]">Payload</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -116,7 +116,7 @@ export function AdminAuditLogsTab() {
                 </tr>
               ) : (
                 logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={log.id} className="group hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">
                         {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
@@ -138,10 +138,10 @@ export function AdminAuditLogsTab() {
                         <div className="text-[10px] text-slate-400 font-mono">{log.entityId}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                       <button
                         onClick={() => setSelectedLog(log)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] rounded-lg transition-colors flex items-center gap-1 ml-auto"
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] rounded-lg transition-colors flex items-center gap-1 ml-auto shadow-sm"
                       >
                         <Code className="w-3.5 h-3.5" /> Details
                       </button>

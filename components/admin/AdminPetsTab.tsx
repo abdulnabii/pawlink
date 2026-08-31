@@ -167,12 +167,12 @@ export function AdminPetsTab({ adminRole }: AdminPetsTabProps) {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">Pet Profile</th>
-                <th className="px-6 py-3.5">Species / Breed</th>
-                <th className="px-6 py-3.5">Owner</th>
-                <th className="px-6 py-3.5">Attached Tag</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-3.5 min-w-[200px]">Pet Profile</th>
+                <th className="px-6 py-3.5 min-w-[130px]">Species / Breed</th>
+                <th className="px-6 py-3.5 min-w-[160px]">Owner</th>
+                <th className="px-6 py-3.5 min-w-[130px]">Attached Tag</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Status</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[90px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -192,7 +192,7 @@ export function AdminPetsTab({ adminRole }: AdminPetsTabProps) {
                 pets.map((pet) => {
                   const tag = pet.tagAssignments?.[0]?.tag;
                   return (
-                    <tr key={pet.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={pet.id} className="group hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-slate-500">
@@ -213,8 +213,9 @@ export function AdminPetsTab({ adminRole }: AdminPetsTabProps) {
                         <p className="text-[10px] text-slate-400">{pet.breed || "Standard"}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-slate-900">{pet.user?.name || "Owner"}</p>
-                        <p className="text-[10px] text-slate-400">{pet.user?.email}</p>
+                        <p className="font-bold text-slate-900">{pet.user?.name || pet.ownerName || "Pet Owner"}</p>
+                        <p className="text-[10px] text-slate-400">{pet.user?.email || "—"}</p>
+                        {pet.user?.phone && <p className="text-[10px] text-slate-500 font-mono">{pet.user.phone}</p>}
                       </td>
                       <td className="px-6 py-4">
                         {tag ? (
@@ -238,10 +239,10 @@ export function AdminPetsTab({ adminRole }: AdminPetsTabProps) {
                           {pet.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                         <button
                           onClick={() => handleInspectPet(pet.id)}
-                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors"
+                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors shadow-sm"
                         >
                           Inspect
                         </button>
@@ -346,9 +347,9 @@ export function AdminPetsTab({ adminRole }: AdminPetsTabProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                 <h4 className="font-extrabold uppercase text-[10px] text-slate-400 mb-1">Owner Contact</h4>
-                <p className="font-bold text-slate-900">{selectedPet.user?.name}</p>
-                <p className="text-slate-500">{selectedPet.user?.email}</p>
-                <p className="text-slate-500 font-mono">{selectedPet.user?.phone || "No phone listed"}</p>
+                <p className="font-bold text-slate-900">{selectedPet.user?.name || selectedPet.ownerName || "Pet Owner"}</p>
+                <p className="text-slate-500">{selectedPet.user?.email || "No email listed"}</p>
+                <p className="text-slate-500 font-mono">{selectedPet.user?.phone || selectedPet.contactPhone || "No phone listed"}</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">

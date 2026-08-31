@@ -35,11 +35,23 @@ export async function GET(
       return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     }
 
+    // Ensure owner/user details are populated
+    if (!pet.user && pet.userId) {
+      const u = await db.user.findUnique({ where: { id: pet.userId } });
+      if (u) {
+        (pet as any).user = { id: u.id, name: u.name, email: u.email, phone: u.phone };
+      }
+    }
+
     return NextResponse.json({ pet: sanitizePrisma(pet) });
   } catch (err: unknown) {
+    console.error("[Admin Pet Detail API Error]:", err);
     const message = err instanceof Error ? err.message : "Failed to load pet details";
-    const status = message.includes("FORBIDDEN") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("FORBIDDEN") || message.includes("UNAUTHORIZED")) {
+      const status = message.includes("FORBIDDEN") ? 403 : 401;
+      return NextResponse.json({ error: message }, { status });
+    }
+    return NextResponse.json({ error: "Unable to load pet details at this time. Please refresh." }, { status: 500 });
   }
 }
 

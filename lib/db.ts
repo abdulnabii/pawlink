@@ -247,7 +247,20 @@ function createSelfHealingDb() {
     },
     tagAssignment: {
       findFirst: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.tagAssignment.findFirst(args);
+          } catch {}
+        }
         return null;
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.tagAssignment.findMany(args);
+          } catch {}
+        }
+        return [];
       },
       updateMany: async (args: any) => {
         if (rawPrisma) {
@@ -269,7 +282,30 @@ function createSelfHealingDb() {
       },
     },
     recoveryCase: {
-      count: async (args?: any) => resilientStore.getMetrics().recoveredCases,
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.recoveryCase.count(args);
+          } catch {}
+        }
+        return await resilientStore.countRecoveryCases(args);
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.recoveryCase.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findRecoveryCases(args);
+      },
+      findUnique: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.recoveryCase.findUnique(args);
+          } catch {}
+        }
+        return await resilientStore.findRecoveryCaseUnique(args);
+      },
       findFirst: async (args: any) => {
         if (rawPrisma) {
           try {
@@ -328,6 +364,22 @@ function createSelfHealingDb() {
         }
         return { count: args.data?.length || 0 };
       },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.recoveryEvent.findMany(args);
+          } catch {}
+        }
+        return [];
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.recoveryEvent.count(args);
+          } catch {}
+        }
+        return 0;
+      },
     },
     petMedicalRecord: {
       findMany: async (args?: any) => {
@@ -357,11 +409,38 @@ function createSelfHealingDb() {
         }
         return { success: true };
       },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.petMedicalRecord.count(args);
+          } catch {}
+        }
+        return 0;
+      },
     },
     scanEvent: {
-      count: async () => resilientStore.getMetrics().totalScans,
-      findMany: async (args?: any) => resilientStore.getRecentScans(args?.take || 10),
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.scanEvent.count(args);
+          } catch {}
+        }
+        return await resilientStore.countScanEvents(args);
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.scanEvent.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findScanEvents(args);
+      },
       findUnique: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.scanEvent.findUnique(args);
+          } catch {}
+        }
         return null;
       },
       create: async (args: any) => {
@@ -376,6 +455,30 @@ function createSelfHealingDb() {
       },
     },
     locationEvent: {
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.locationEvent.count(args);
+          } catch {}
+        }
+        return await resilientStore.countLocationEvents(args);
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.locationEvent.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findLocationEvents(args);
+      },
+      findFirst: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.locationEvent.findFirst(args);
+          } catch {}
+        }
+        return (await resilientStore.findLocationEvents(args))[0] || null;
+      },
       create: async (args: any) => {
         let prismaRes = null;
         if (rawPrisma) {
@@ -387,6 +490,11 @@ function createSelfHealingDb() {
         return prismaRes || storeRes;
       },
       deleteMany: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            await rawPrisma.locationEvent.deleteMany(args);
+          } catch {}
+        }
         return { count: 1 };
       },
     },
@@ -417,6 +525,14 @@ function createSelfHealingDb() {
         }
         return await resilientStore.findConversations(args);
       },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.conversation.count(args);
+          } catch {}
+        }
+        return (await resilientStore.findConversations(args)).length;
+      },
       create: async (args: any) => {
         let prismaRes = null;
         if (rawPrisma) {
@@ -428,6 +544,11 @@ function createSelfHealingDb() {
         return prismaRes || storeRes;
       },
       update: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.conversation.update(args);
+          } catch {}
+        }
         return { id: args.where?.id, ...args.data };
       },
     },
@@ -443,19 +564,87 @@ function createSelfHealingDb() {
         return prismaRes || storeRes;
       },
       findMany: async (args: any) => {
-        return [];
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.message.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findMessages(args);
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.message.count(args);
+          } catch {}
+        }
+        return (await resilientStore.findMessages(args)).length;
       },
     },
     notificationJob: {
-      findMany: async (args?: any) => resilientStore.getRecentJobs(args?.take || 10),
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notificationJob.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.findNotificationJobs(args);
+      },
+      findUnique: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notificationJob.findUnique(args);
+          } catch {}
+        }
+        return await resilientStore.findNotificationJobUnique(args);
+      },
+      findFirst: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notificationJob.findFirst(args);
+          } catch {}
+        }
+        return (await resilientStore.findNotificationJobs(args))[0] || null;
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notificationJob.count(args);
+          } catch {}
+        }
+        return await resilientStore.countNotificationJobs(args);
+      },
       create: async (args: any) => {
-        return await resilientStore.createNotificationJob(args);
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.notificationJob.create(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.createNotificationJob(args);
+        return prismaRes || storeRes;
+      },
+      update: async (args: any) => {
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.notificationJob.update(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.updateNotificationJob(args);
+        return prismaRes || storeRes;
       },
     },
     notification: {
       groupBy: async () => [],
       create: async (args: any) => {
-        return await resilientStore.createNotification(args);
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.notification.create(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.createNotification(args);
+        return prismaRes || storeRes;
       },
       findMany: async (args: any) => {
         if (rawPrisma) {
@@ -463,7 +652,31 @@ function createSelfHealingDb() {
             return await rawPrisma.notification.findMany(args);
           } catch {}
         }
-        return [];
+        return await resilientStore.findNotifications(args);
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notification.count(args);
+          } catch {}
+        }
+        return (await resilientStore.findNotifications(args)).length;
+      },
+      update: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notification.update(args);
+          } catch {}
+        }
+        return await resilientStore.updateNotification(args);
+      },
+      updateMany: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.notification.updateMany(args);
+          } catch {}
+        }
+        return await resilientStore.updateManyNotifications(args);
       },
     },
     notificationPreference: {
@@ -536,6 +749,14 @@ function createSelfHealingDb() {
         }
         const storeRes = await resilientStore.updateSubscription(args);
         return prismaRes || storeRes;
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await rawPrisma.subscription.count(args);
+          } catch {}
+        }
+        return (await resilientStore.findSubscriptions(args)).length;
       },
     },
     report: {

@@ -143,13 +143,13 @@ export function AdminSubscriptionsTab() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">User</th>
-                <th className="px-6 py-3.5">Requested Plan</th>
-                <th className="px-6 py-3.5">Transaction ID</th>
-                <th className="px-6 py-3.5">Sender Info</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Submitted</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-3.5 min-w-[160px]">User</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Requested Plan</th>
+                <th className="px-6 py-3.5 min-w-[150px]">Transaction ID</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Sender Info</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Status</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Submitted</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[150px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -167,7 +167,7 @@ export function AdminSubscriptionsTab() {
                 </tr>
               ) : (
                 requests.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={req.id} className="group hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{req.user?.name || "Pet Owner"}</div>
                       <div className="text-[10px] text-slate-400">{req.user?.email}</div>
@@ -202,7 +202,7 @@ export function AdminSubscriptionsTab() {
                     <td className="px-6 py-4 text-[11px] text-slate-500">
                       {new Date(req.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </td>
-                    <td className="px-6 py-4 text-right space-x-2">
+                    <td className="px-6 py-4 text-right space-x-2 sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                       {req.status === "PENDING" && (
                         <>
                           <button

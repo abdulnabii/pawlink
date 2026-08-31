@@ -113,12 +113,12 @@ export function AdminMessagesTab() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">Pet &amp; Owner</th>
-                <th className="px-6 py-3.5">Finder Contact</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Total Messages</th>
-                <th className="px-6 py-3.5">Last Activity</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-3.5 min-w-[160px]">Pet &amp; Owner</th>
+                <th className="px-6 py-3.5 min-w-[160px]">Finder Contact</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Status</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Total Messages</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Last Activity</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[130px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -136,7 +136,7 @@ export function AdminMessagesTab() {
                 </tr>
               ) : (
                 conversations.map((conv) => (
-                  <tr key={conv.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={conv.id} className="group hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <p className="font-bold text-slate-900">{conv.pet?.name || "Pet"}</p>
                       <p className="text-[10px] text-slate-400">Owner: {conv.pet?.user?.name}</p>
@@ -162,10 +162,10 @@ export function AdminMessagesTab() {
                     <td className="px-6 py-4 text-[11px] text-slate-500">
                       {new Date(conv.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </td>
-                    <td className="px-6 py-4 text-right space-x-2">
+                    <td className="px-6 py-4 text-right space-x-2 sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                       <button
                         onClick={() => setSelectedConv(conv)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors"
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors shadow-sm"
                       >
                         Inspect
                       </button>

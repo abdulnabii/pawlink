@@ -71,8 +71,18 @@ export async function GET() {
       },
     });
   } catch (err: unknown) {
+    console.error("[Admin Analytics API Error]:", err);
     const message = err instanceof Error ? err.message : "Failed to load analytics";
-    const status = message.includes("FORBIDDEN") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("FORBIDDEN") || message.includes("UNAUTHORIZED")) {
+      const status = message.includes("FORBIDDEN") ? 403 : 401;
+      return NextResponse.json({ error: message }, { status });
+    }
+    return NextResponse.json({
+      error: "Unable to load analytics at this time. Please refresh.",
+      funnel: [],
+      topCities: [],
+      topDevices: [],
+      totals: { totalUsers: 0, totalPets: 0, totalTags: 0, totalScans: 0, totalRecoveries: 0 }
+    }, { status: 500 });
   }
 }

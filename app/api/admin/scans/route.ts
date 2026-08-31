@@ -72,8 +72,16 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
+    console.error("[Admin Scans API Error]:", err);
     const message = err instanceof Error ? err.message : "Failed to load scans";
-    const status = message.includes("FORBIDDEN") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("FORBIDDEN") || message.includes("UNAUTHORIZED")) {
+      const status = message.includes("FORBIDDEN") ? 403 : 401;
+      return NextResponse.json({ error: message }, { status });
+    }
+    return NextResponse.json({
+      error: "Unable to load scan activity at this time. Please refresh.",
+      scans: [],
+      pagination: { total: 0, page: 1, pageSize: 25, totalPages: 1 }
+    }, { status: 500 });
   }
 }

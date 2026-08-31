@@ -132,12 +132,12 @@ export function AdminReportsTab() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">Category</th>
-                <th className="px-6 py-3.5">Target</th>
-                <th className="px-6 py-3.5">Reason</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Date</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Category</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Target</th>
+                <th className="px-6 py-3.5 min-w-[180px]">Reason</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Status</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Date</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[90px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -155,7 +155,7 @@ export function AdminReportsTab() {
                 </tr>
               ) : (
                 reports.map((rep) => (
-                  <tr key={rep.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={rep.id} className="group hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
                       <span className="font-extrabold text-slate-900">{rep.category}</span>
                     </td>
@@ -182,10 +182,10 @@ export function AdminReportsTab() {
                     <td className="px-6 py-4 text-[11px] text-slate-500">
                       {new Date(rep.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                       <button
                         onClick={() => setSelectedReport(rep)}
-                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] rounded-lg transition-colors"
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] rounded-lg transition-colors shadow-sm"
                       >
                         Triage
                       </button>

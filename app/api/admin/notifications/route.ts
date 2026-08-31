@@ -36,9 +36,17 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
+    console.error("[Admin Notifications API Error]:", err);
     const message = err instanceof Error ? err.message : "Failed to load notifications";
-    const status = message.includes("FORBIDDEN") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("FORBIDDEN") || message.includes("UNAUTHORIZED")) {
+      const status = message.includes("FORBIDDEN") ? 403 : 401;
+      return NextResponse.json({ error: message }, { status });
+    }
+    return NextResponse.json({
+      error: "Unable to load notification queue at this time. Please refresh.",
+      jobs: [],
+      stats: { queued: 0, processing: 0, completed: 0, failed: 0, failureRate: 0 }
+    }, { status: 500 });
   }
 }
 

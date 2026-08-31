@@ -34,8 +34,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ cases: sanitizePrisma(cases) });
   } catch (err: unknown) {
+    console.error("[Admin Recovery API Error]:", err);
     const message = err instanceof Error ? err.message : "Failed to load recovery cases";
-    const status = message.includes("FORBIDDEN") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("FORBIDDEN") || message.includes("UNAUTHORIZED")) {
+      const status = message.includes("FORBIDDEN") ? 403 : 401;
+      return NextResponse.json({ error: message }, { status });
+    }
+    return NextResponse.json({ error: "Unable to load recovery cases at this time. Please refresh.", cases: [] }, { status: 500 });
   }
 }

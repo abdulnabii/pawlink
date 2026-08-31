@@ -189,13 +189,13 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">User</th>
-                <th className="px-6 py-3.5">Role</th>
-                <th className="px-6 py-3.5">Plan</th>
-                <th className="px-6 py-3.5">Pets</th>
-                <th className="px-6 py-3.5">Tags</th>
-                <th className="px-6 py-3.5">Joined</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-3.5 min-w-[200px]">User</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Role</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Plan</th>
+                <th className="px-6 py-3.5 min-w-[80px]">Pets</th>
+                <th className="px-6 py-3.5 min-w-[80px]">Tags</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Joined</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[130px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -215,7 +215,7 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
                 users.map((u) => {
                   const plan = u.subscriptions?.[0]?.plan || "FREE";
                   return (
-                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={u.id} className="group hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-bold text-slate-900">{u.name || "Pet Owner"}</div>
                         <div className="text-[10px] text-slate-400">{u.email}</div>
@@ -256,10 +256,10 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
                           year: "numeric",
                         })}
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2">
+                      <td className="px-6 py-4 text-right space-x-2 sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                         <button
                           onClick={() => handleOpenUserDetail(u.id)}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors"
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors shadow-sm"
                         >
                           Inspect
                         </button>

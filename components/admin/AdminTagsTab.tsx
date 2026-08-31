@@ -171,13 +171,13 @@ export function AdminTagsTab({ adminRole }: AdminTagsTabProps) {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">Tag Code</th>
-                <th className="px-6 py-3.5">Assigned Pet</th>
-                <th className="px-6 py-3.5">Owner</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Lifetime Scans</th>
-                <th className="px-6 py-3.5">Manufactured</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+                <th className="px-6 py-3.5 min-w-[140px]">Tag Code</th>
+                <th className="px-6 py-3.5 min-w-[150px]">Assigned Pet</th>
+                <th className="px-6 py-3.5 min-w-[160px]">Owner</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Status</th>
+                <th className="px-6 py-3.5 min-w-[110px]">Lifetime Scans</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Manufactured</th>
+                <th className="px-6 py-3.5 text-right sticky right-0 bg-slate-50 z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] min-w-[110px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -197,7 +197,7 @@ export function AdminTagsTab({ adminRole }: AdminTagsTabProps) {
                 tags.map((tag) => {
                   const pet = tag.assignments?.[0]?.pet;
                   return (
-                    <tr key={tag.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={tag.id} className="group hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-mono font-extrabold text-slate-900">{tag.tagCode}</div>
                         <div className="text-[10px] text-slate-400">{tag.label || "Collar Tag"}</div>
@@ -243,7 +243,7 @@ export function AdminTagsTab({ adminRole }: AdminTagsTabProps) {
                           year: "numeric",
                         })}
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2">
+                      <td className="px-6 py-4 text-right space-x-2 sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
                         {tag.status === "ACTIVE" ? (
                           <button
                             onClick={() => handleUpdateTagStatus(tag.id, "REVOKE")}

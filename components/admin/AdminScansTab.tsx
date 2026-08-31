@@ -83,13 +83,13 @@ export function AdminScansTab() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 border-b border-slate-200 font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-6 py-3.5">Time</th>
-                <th className="px-6 py-3.5">Tag Code</th>
-                <th className="px-6 py-3.5">Pet &amp; Owner</th>
-                <th className="px-6 py-3.5">Approximate Location</th>
-                <th className="px-6 py-3.5">Device &amp; Browser</th>
-                <th className="px-6 py-3.5">IP Hash</th>
-                <th className="px-6 py-3.5">Status</th>
+                <th className="px-6 py-3.5 min-w-[130px]">Time</th>
+                <th className="px-6 py-3.5 min-w-[120px]">Tag Code</th>
+                <th className="px-6 py-3.5 min-w-[170px]">Pet &amp; Owner</th>
+                <th className="px-6 py-3.5 min-w-[160px]">Approximate Location</th>
+                <th className="px-6 py-3.5 min-w-[160px]">Device &amp; Browser</th>
+                <th className="px-6 py-3.5 min-w-[110px]">IP Hash</th>
+                <th className="px-6 py-3.5 min-w-[100px]">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
