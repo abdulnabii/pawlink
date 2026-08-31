@@ -52,6 +52,28 @@ export async function POST(
       },
     });
 
+    // Increment scanCount on the Tag
+    const newScanCount = (Number(tag.scanCount) || 0) + 1;
+    await db.tag.update({
+      where: { id: tag.id },
+      data: {
+        scanCount: { increment: 1 },
+        lastScannedAt: new Date(),
+      },
+    });
+
+    // Log Recovery timeline event
+    await db.recoveryEvent.create({
+      data: {
+        petId: pet.id,
+        type: "TAG_SCANNED",
+        actorType: "OWNER",
+        title: "Collar Tag Test Simulation",
+        description: `Collar tag ${tag.tagCode} test simulated. Scan alert pipeline verified.`,
+        metadata: JSON.stringify({ isTest: true }),
+      },
+    });
+
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
@@ -80,10 +102,11 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Test scan successful! An alert was sent to your registered channels.`,
+      message: `🎉 Test scan simulated successfully for ${pet.name}! Emergency alert pipeline verified.`,
       scanId: scan.id,
       tagCode: tag.tagCode,
       petName: pet.name,
+      newScanCount,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Test scan failed";

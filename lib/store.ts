@@ -30,11 +30,14 @@ export class ResilientDataStore {
 
   private lastCloudSync = 0;
   private isSyncing = false;
+  private isInitialized = false;
+  private hydrationPromise: Promise<void> | null = null;
+  private saveDebounceTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     this.initSeed();
+    this.syncFromCloud().catch(() => {});
   }
-
 
   private initSeed() {
     const ownerId = "usr_owner_001";
@@ -334,9 +337,25 @@ export class ResilientDataStore {
 
   async syncFromCloud() {
     const now = Date.now();
-    if (now - this.lastCloudSync < 800) return;
-    this.lastCloudSync = now;
+    
+    // Fast path: If already initialized, serve from in-memory cache instantly
+    if (this.isInitialized) {
+      if (now - this.lastCloudSync > 30000 && !this.isSyncing) {
+        this.lastCloudSync = now;
+        this.fetchCloudStateInBackground();
+      }
+      return;
+    }
 
+    if (!this.hydrationPromise) {
+      this.hydrationPromise = this.fetchCloudState();
+    }
+    await this.hydrationPromise;
+  }
+
+  private async fetchCloudState() {
+    if (this.isSyncing) return;
+    this.isSyncing = true;
     try {
       const res = await fetch(`${SUPABASE_REST_URL}?id=eq.pawlink_cloud_state&select=*`, {
         headers: {
@@ -344,7 +363,7 @@ export class ResilientDataStore {
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
         cache: "no-store",
-        signal: AbortSignal.timeout(2500),
+        signal: AbortSignal.timeout(3000),
       });
 
       if (res.ok) {
@@ -367,10 +386,29 @@ export class ResilientDataStore {
           if (Array.isArray(state.medicalRecords)) this.medicalRecords = this.mergeArrayById(this.medicalRecords, state.medicalRecords);
         }
       }
-    } catch {}
+    } catch {} finally {
+      this.isSyncing = false;
+      this.isInitialized = true;
+      this.lastCloudSync = Date.now();
+    }
+  }
+
+  private fetchCloudStateInBackground() {
+    this.fetchCloudState().catch(() => {});
   }
 
   async syncToCloud() {
+    // Non-blocking debounced cloud synchronization
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+
+    this.saveDebounceTimer = setTimeout(() => {
+      this.executeCloudSave().catch(() => {});
+    }, 60);
+  }
+
+  private async executeCloudSave() {
     try {
       const statePayload = {
         users: this.users,
@@ -404,7 +442,7 @@ export class ResilientDataStore {
           Prefer: "resolution=merge-duplicates",
         },
         body,
-        signal: AbortSignal.timeout(2500),
+        signal: AbortSignal.timeout(3000),
       });
     } catch {}
   }

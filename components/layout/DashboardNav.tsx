@@ -39,9 +39,7 @@ export function DashboardNav() {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
-
+  const fetchNavUserData = () => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 7000);
 
@@ -55,28 +53,30 @@ export function DashboardNav() {
     ])
       .then(([authData, subData]) => {
         clearTimeout(timer);
-        if (isMounted) {
-          if (authData?.user) {
-            setUser(authData.user);
-          } else {
-            // Unauthenticated session - redirect to login
-            router.push("/auth/login");
-          }
-          if (subData?.subscription) setSubscription(subData.subscription);
-          setLoading(false);
+        if (authData?.user) {
+          setUser(authData.user);
         }
+        if (subData?.subscription) setSubscription(subData.subscription);
+        setLoading(false);
       })
       .catch(() => {
         clearTimeout(timer);
-        if (isMounted) setLoading(false);
+        setLoading(false);
       });
+  };
 
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-      controller.abort();
+  useEffect(() => {
+    fetchNavUserData();
+
+    const handleAuthUpdated = () => {
+      fetchNavUserData();
     };
-  }, [router]);
+
+    window.addEventListener("pawlink-auth-updated", handleAuthUpdated);
+    return () => {
+      window.removeEventListener("pawlink-auth-updated", handleAuthUpdated);
+    };
+  }, [pathname]);
 
 
   const handleLogout = async () => {

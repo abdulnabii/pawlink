@@ -81,18 +81,10 @@ export default function NewPetPage() {
         throw new Error(data.message || data.error || "Failed to create pet profile");
       }
 
-      // Automatically generate & connect a new Tag for this pet
-      await fetch("/api/tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ petId: data.pet.id, label: `${name}'s Primary Collar Tag` }),
-      });
-
       router.push(`/dashboard/pets/${data.pet.id}`);
       router.refresh();
     } catch (err: any) {
       setError(err.message || "An error occurred");
-    } finally {
       setLoading(false);
     }
   };
@@ -107,7 +99,17 @@ export default function NewPetPage() {
         <span>Back to Pets</span>
       </Link>
 
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6 relative overflow-hidden">
+        {loading && (
+          <div className="absolute inset-0 z-30 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+            <Loader2 className="w-12 h-12 text-teal-600 animate-spin mb-3" />
+            <h4 className="font-black text-lg text-slate-900">Creating Pet Profile...</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs">
+              Generating secure cryptographic QR collar tag and linking digital emergency profile.
+            </p>
+          </div>
+        )}
+
         <div>
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Pet Profile</h1>

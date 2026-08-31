@@ -225,11 +225,28 @@ function SettingsContent() {
       setDemoCode(null);
       setOtpCode("");
       fetchUserData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("pawlink-auth-updated"));
+      }
     } catch (err: any) {
       setVerifyError(err.message || "Invalid verification code");
     } finally {
       setVerifying(false);
     }
+  };
+
+  const handleToggleWhatsApp = async (enabled: boolean) => {
+    setWhatsappEnabled(enabled);
+    try {
+      await fetch("/api/auth/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TOGGLE", enabled }),
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("pawlink-auth-updated"));
+      }
+    } catch {}
   };
 
   const handlePlanClick = (plan: any) => {
@@ -663,8 +680,8 @@ function SettingsContent() {
             <input
               type="checkbox"
               checked={whatsappEnabled}
-              onChange={(e) => setWhatsappEnabled(e.target.checked)}
-              className="rounded text-teal-600 w-4 h-4"
+              onChange={(e) => handleToggleWhatsApp(e.target.checked)}
+              className="rounded text-teal-600 w-4 h-4 cursor-pointer"
             />
           </div>
 

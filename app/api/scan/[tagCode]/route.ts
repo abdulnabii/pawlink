@@ -92,90 +92,93 @@ export async function GET(
       );
     }
 
-    const activeRecoveryCase = pet.recoveryCases[0] || null;
+    const activeRecoveryCase = pet.recoveryCases?.[0] || null;
     const idempotencyKey = generateScanFingerprint(tag.id, ipHash, 30); // 30s idempotency window
-
-    // 3. Atomically Record Scan & Recovery Event
     const throttled = isNotificationThrottled(tag.id, ipHash, 5 * 60 * 1000); // 5 min notification throttle
 
-    await db.$transaction(async (tx: any) => {
-      // Create ScanEvent if not already logged within the 30s idempotency window
-      const existingScan = await tx.scanEvent.findUnique({
-        where: { idempotencyKey },
-      });
+    // 3. Asynchronously record ScanEvent, RecoveryEvent & dispatch Notification in background
+    const recordBackgroundScan = async () => {
+      try {
+        await db.$transaction(async (tx: any) => {
+          const existingScan = await tx.scanEvent.findUnique({
+            where: { idempotencyKey },
+          });
 
-      if (!existingScan) {
-        await tx.scanEvent.create({
-          data: {
-            tagId: tag.id,
-            recoveryCaseId: activeRecoveryCase?.id || null,
-            ipHash,
-            idempotencyKey,
-            userAgentCategory,
-            deviceType,
-            approximateLocation: "Tag Scanned via QR",
-            scanSource: "QR",
-            notificationSent: !throttled,
-          },
+          if (!existingScan) {
+            await tx.scanEvent.create({
+              data: {
+                tagId: tag.id,
+                recoveryCaseId: activeRecoveryCase?.id || null,
+                ipHash,
+                idempotencyKey,
+                userAgentCategory,
+                deviceType,
+                approximateLocation: "Tag Scanned via QR",
+                scanSource: "QR",
+                notificationSent: !throttled,
+              },
+            });
+
+            await tx.tag.update({
+              where: { id: tag.id },
+              data: {
+                scanCount: { increment: 1 },
+                lastScannedAt: new Date(),
+              },
+            });
+
+            await tx.recoveryEvent.create({
+              data: {
+                petId: pet.id,
+                recoveryCaseId: activeRecoveryCase?.id || null,
+                type: "TAG_SCANNED",
+                actorType: "FINDER",
+                title: `QR Tag Scanned`,
+                description: `${pet.name}'s collar tag was scanned by a finder on a ${deviceType} device.`,
+                metadata: JSON.stringify({
+                  deviceType,
+                  userAgentCategory,
+                }),
+              },
+            });
+          }
         });
 
-        // Increment scan count on Tag
-        await tx.tag.update({
-          where: { id: tag.id },
-          data: {
-            scanCount: { increment: 1 },
-            lastScannedAt: new Date(),
-          },
-        });
+        if (!throttled) {
+          const appUrl =
+            process.env.NEXT_PUBLIC_APP_URL ||
+            (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
+          const dashboardUrl = `${appUrl}/dashboard/pets/${pet.id}`;
 
-        // Log RecoveryEvent on timeline
-        await tx.recoveryEvent.create({
-          data: {
-            petId: pet.id,
-            recoveryCaseId: activeRecoveryCase?.id || null,
-            type: "TAG_SCANNED",
-            actorType: "FINDER",
-            title: `QR Tag Scanned`,
-            description: `${pet.name}'s collar tag was scanned by a finder on a ${deviceType} device.`,
-            metadata: JSON.stringify({
-              deviceType,
-              userAgentCategory,
-            }),
-          },
-        });
+          await enqueueNotificationJob(
+            pet.userId,
+            "SCAN_ALERT",
+            {
+              userId: pet.userId,
+              petId: pet.id,
+              petName: pet.name,
+              type: "SCAN_ALERT",
+              title: `🚨 ${pet.name}'s QR Tag Was Just Scanned!`,
+              body: `Someone just scanned ${pet.name}'s collar tag using a ${deviceType} device. The finder may share their location or message you shortly.`,
+              tagCode: tag.tagCode,
+              dashboardUrl,
+            },
+            `SCAN_ALERT:${tag.id}:${idempotencyKey}`
+          );
+
+          processNotificationQueue(5).catch((err) =>
+            console.error("[Queue Worker Async Trigger Error]", err)
+          );
+        }
+      } catch (e) {
+        console.error("[Scan Event Background Log Error]", e);
       }
-    });
+    };
 
-    // 4. Enqueue Asynchronous Notification if not throttled
-    if (!throttled) {
-      const appUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
-      const dashboardUrl = `${appUrl}/dashboard/pets/${pet.id}`;
+    // Fire-and-forget scan telemetry so finder gets pet data in milliseconds
+    recordBackgroundScan().catch(() => {});
 
-      await enqueueNotificationJob(
-        pet.userId,
-        "SCAN_ALERT",
-        {
-          userId: pet.userId,
-          petId: pet.id,
-          petName: pet.name,
-          type: "SCAN_ALERT",
-          title: `🚨 ${pet.name}'s QR Tag Was Just Scanned!`,
-          body: `Someone just scanned ${pet.name}'s collar tag using a ${deviceType} device. The finder may share their location or message you shortly.`,
-          tagCode: tag.tagCode,
-          dashboardUrl,
-        },
-        `SCAN_ALERT:${tag.id}:${idempotencyKey}`
-      );
-
-      // Trigger asynchronous queue process in background without blocking response
-      processNotificationQueue(5).catch((err) =>
-        console.error("[Queue Worker Async Trigger Error]", err)
-      );
-    }
-
-    // 5. Return Safe Public DTO
+    // 4. Return Safe Public DTO instantly
     const publicProfile = toPublicPetResponse(pet, tag);
 
     return NextResponse.json({

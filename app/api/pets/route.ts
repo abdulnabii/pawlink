@@ -3,6 +3,8 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CreatePetInputSchema } from "@/lib/validation";
 import { sanitizePrisma } from "@/lib/sanitize";
+import { generateTagCode, generateActivationPin } from "@/lib/crypto";
+import { getTagRecoveryUrl } from "@/lib/qr";
 
 export async function GET() {
   try {
@@ -90,7 +92,30 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, pet }, { status: 201 });
+    // Automatically generate and assign primary Collar Tag
+    const tagCode = generateTagCode();
+    const activationPin = generateActivationPin();
+    const qrUrl = getTagRecoveryUrl(tagCode);
+
+    const tag = await db.tag.create({
+      data: {
+        tagCode,
+        activationPin,
+        qrUrl,
+        label: `${validated.name}'s Primary Collar Tag`,
+        status: "ACTIVE",
+      },
+    });
+
+    await db.tagAssignment.create({
+      data: {
+        tagId: tag.id,
+        petId: pet.id,
+        assignedById: user.id,
+      },
+    });
+
+    return NextResponse.json({ success: true, pet, tag }, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create pet";
     return NextResponse.json({ error: message }, { status: 400 });

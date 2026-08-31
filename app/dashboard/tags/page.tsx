@@ -97,6 +97,11 @@ export default function TagsManagerPage() {
 
   const [testingTagId, setTestingTagId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [testSuccessModal, setTestSuccessModal] = useState<{
+    petName: string;
+    tagCode: string;
+    scanCount: number;
+  } | null>(null);
 
   const [showNewTagModal, setShowNewTagModal] = useState(false);
   const [selectedPetId, setSelectedPetId] = useState("");
@@ -180,9 +185,22 @@ export default function TagsManagerPage() {
     try {
       const res = await fetch(`/api/tags/${tagId}/test`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) {
+      if (res.ok && data.success) {
+        const newCount = data.newScanCount || 1;
         setTestResult(data.message || "Test scan simulated successfully!");
-        fetchTagsAndPets();
+        setTestSuccessModal({
+          petName: data.petName || "Your Pet",
+          tagCode: data.tagCode || "PW-TAG",
+          scanCount: newCount,
+        });
+        // Real-time optimistic update of tag scan counter in state
+        setTags((prev) =>
+          prev.map((t) =>
+            t.id === tagId || t.tagCode === data.tagCode
+              ? { ...t, scanCount: newCount, lastScannedAt: new Date() }
+              : t
+          )
+        );
       } else {
         alert(data.error || "Test scan failed");
       }
@@ -469,6 +487,63 @@ export default function TagsManagerPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Test Tag Simulation Success Modal */}
+      {testSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-center space-y-5">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full border border-emerald-200">
+                Emergency Alert Pipeline Verified
+              </span>
+              <h3 className="text-xl font-black text-slate-900 mt-2">
+                Tag Test Successful for {testSuccessModal.petName}! 🎉
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Your PawLink QR tag is active and fully functional.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-4 text-left border border-slate-100 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-semibold">Tag Identifier:</span>
+                <code className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {testSuccessModal.tagCode}
+                </code>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-semibold">Live Scan Counter:</span>
+                <span className="font-black text-emerald-600">{testSuccessModal.scanCount} Scans (Updated)</span>
+              </div>
+              <div className="pt-2 border-t border-slate-200 space-y-1.5 text-[11px] text-slate-600">
+                <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Simulated scan event recorded in telemetry</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>WhatsApp &amp; Email notification jobs dispatched</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Pet recovery timeline updated in real time</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setTestSuccessModal(null)}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors"
+            >
+              Great, Got It!
+            </button>
           </div>
         </div>
       )}

@@ -73,10 +73,25 @@ export function LostModeModal({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative z-[10000]">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative z-[10000] overflow-hidden">
+        {loading && (
+          <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+            <Loader2 className={`w-12 h-12 ${isCurrentlyLost ? "text-emerald-600" : "text-red-600"} animate-spin mb-3`} />
+            <h4 className="font-black text-lg text-slate-900">
+              {isCurrentlyLost ? "Restoring Safe Status..." : "Activating Lost Mode..."}
+            </h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs">
+              {isCurrentlyLost
+                ? `Marking ${petName} as safely home and updating timeline.`
+                : `Broadcasting emergency recovery alert and updating ${petName}'s public tag.`}
+            </p>
+          </div>
+        )}
+
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:bg-slate-100 transition-colors"
+          disabled={loading}
+          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:bg-slate-100 transition-colors disabled:opacity-30"
         >
           <X className="w-5 h-5" />
         </button>
