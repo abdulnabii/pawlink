@@ -151,32 +151,44 @@ export function DashboardNav() {
 
         {/* WhatsApp Verification Status Widget */}
         <div className="mx-4 my-3 p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
-          <div className="flex items-center gap-2 text-xs font-semibold mb-1">
-            {isWhatsAppVerified ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-emerald-400">WhatsApp Alerts Active</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="w-4 h-4 text-amber-400" />
-                <span className="text-amber-300">WhatsApp Not Verified</span>
-              </>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-400 leading-tight mb-2">
-            {isWhatsAppVerified
-              ? "Instant scan & GPS alerts will be dispatched via WhatsApp."
-              : "Verify your phone number to receive instant scan alerts."}
-          </p>
-          {!isWhatsAppVerified && (
-            <Link
-              href="/dashboard/settings"
-              className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1"
-            >
-              <span>Verify Number</span>
-              <ExternalLink className="w-3 h-3" />
-            </Link>
+          {loading && !user ? (
+            <div className="space-y-1.5 animate-pulse">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-slate-700" />
+                <div className="h-3 w-28 bg-slate-700 rounded" />
+              </div>
+              <div className="h-2.5 w-full bg-slate-700/60 rounded" />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-xs font-semibold mb-1">
+                {isWhatsAppVerified ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="text-emerald-400">WhatsApp Alerts Active</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="text-amber-300">WhatsApp Not Verified</span>
+                  </>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 leading-tight mb-2">
+                {isWhatsAppVerified
+                  ? "Instant scan & GPS alerts will be dispatched via WhatsApp."
+                  : "Verify your phone number to receive instant scan alerts."}
+              </p>
+              {!isWhatsAppVerified && (
+                <Link
+                  href="/dashboard/settings"
+                  className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1"
+                >
+                  <span>Verify Number</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              )}
+            </>
           )}
         </div>
       </div>

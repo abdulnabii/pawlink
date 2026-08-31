@@ -11,7 +11,7 @@ export async function GET() {
       totalPets,
       totalTags,
       totalScans,
-      totalRecoveries,
+      resolvedRecoveryCases,
       scansWithLocation,
       allScans,
     ] = await Promise.all([
@@ -19,7 +19,7 @@ export async function GET() {
       db.pet.count(),
       db.tag.count(),
       db.scanEvent.count(),
-      db.pet.count({ where: { status: "RECOVERED" } }),
+      db.recoveryCase.count({ where: { status: "RESOLVED" } }),
       db.locationEvent.count(),
       db.scanEvent.findMany({
         take: 200,
@@ -55,7 +55,7 @@ export async function GET() {
       { step: "Activated Collar Tag", count: totalTags, rate: totalPets > 0 ? Math.round((totalTags / totalPets) * 100) : 0 },
       { step: "QR Tag Scanned", count: totalScans, rate: totalTags > 0 ? Math.min(100, Math.round((totalScans / totalTags) * 100)) : 0 },
       { step: "Location Pinned", count: scansWithLocation, rate: totalScans > 0 ? Math.round((scansWithLocation / totalScans) * 100) : 0 },
-      { step: "Pet Reunited", count: totalRecoveries, rate: totalPets > 0 ? Math.round((totalRecoveries / totalPets) * 100) : 0 },
+      { step: "Pet Reunited", count: resolvedRecoveryCases, rate: totalPets > 0 ? Math.round((resolvedRecoveryCases / totalPets) * 100) : 0 },
     ];
 
     return NextResponse.json({
@@ -67,7 +67,7 @@ export async function GET() {
         totalPets,
         totalTags,
         totalScans,
-        totalRecoveries,
+        totalRecoveries: resolvedRecoveryCases,
       },
     });
   } catch (err: unknown) {

@@ -181,10 +181,17 @@ export async function GET(
     // 4. Return Safe Public DTO instantly
     const publicProfile = toPublicPetResponse(pet, tag);
 
-    return NextResponse.json({
-      success: true,
-      pet: publicProfile,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        pet: publicProfile,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load recovery page";
     return NextResponse.json({ error: message }, { status: 500 });

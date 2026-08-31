@@ -58,7 +58,7 @@ export async function GET() {
         role: session.role || "OWNER",
         notificationPreference: {
           whatsappEnabled: true,
-          whatsappVerified: false,
+          whatsappVerified: Boolean(session.phone),
           emailEnabled: true,
           notificationPhone: session.phone || null,
         },
@@ -69,6 +69,18 @@ export async function GET() {
           },
         ],
       };
+    } else {
+      if (!user.notificationPreference) {
+        user.notificationPreference = {
+          whatsappEnabled: true,
+          whatsappVerified: Boolean(user.phone),
+          notificationPhone: user.phone || null,
+          emailEnabled: true,
+        };
+      } else if (user.phone && user.notificationPreference.whatsappVerified !== false) {
+        // If phone is set, ensure verified state is recognized consistently
+        user.notificationPreference.whatsappVerified = true;
+      }
     }
 
     if (user && isAdminEmail(user.email)) {
