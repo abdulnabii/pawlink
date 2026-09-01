@@ -897,6 +897,43 @@ function createSelfHealingDb() {
         return (await resilientStore.findAuditLogs(args)).length;
       },
     },
+    subscriptionRequest: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).subscriptionRequest.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.getAllPaymentRequests();
+      },
+      findFirst: async (args?: any) => {
+        const list = await resilientStore.getAllPaymentRequests();
+        if (args?.where?.id) return list.find((r: any) => r.id === args.where.id) || null;
+        if (args?.where?.userId) return list.find((r: any) => r.userId === args.where.userId) || null;
+        return list[0] || null;
+      },
+      create: async (args: any) => {
+        return await resilientStore.createPaymentRequest({
+          userId: args.data.userId,
+          userEmail: args.data.userEmail || "user@pawlink.app",
+          userName: args.data.senderName || "User",
+          requestedPlan: args.data.plan || "PLUS",
+          amountPKR: args.data.amountPKR || 1499,
+          transactionId: args.data.transactionId || "TXN-TEST",
+          senderName: args.data.senderName || "Sender",
+          senderPhone: args.data.senderPhone || "+923001234567",
+          notes: args.data.notes || "",
+        });
+      },
+      update: async (args: any) => {
+        if (args?.data?.status === "APPROVED") {
+          return await resilientStore.approvePaymentRequest(args.where.id);
+        } else if (args?.data?.status === "REJECTED") {
+          return await resilientStore.rejectPaymentRequest(args.where.id, args.data.adminNotes);
+        }
+        return null;
+      },
+    },
   } as unknown as PrismaClient;
 
 }
