@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { UpdatePetInputSchema } from "@/lib/validation";
 import { sanitizePrisma } from "@/lib/sanitize";
@@ -10,12 +10,15 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
 
     const pet = await db.pet.findFirst({
-      where: {
-        id: params.id,
-        userId: user.id,
-      },
+      where: isAdmin
+        ? { id: params.id }
+        : {
+            id: params.id,
+            userId: user.id,
+          },
       include: {
         photos: {
           orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
@@ -67,11 +70,12 @@ export async function PATCH(
 ) {
   try {
     const user = await requireAuth();
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
     const body = await req.json();
     const validated = UpdatePetInputSchema.parse(body);
 
     const existing = await db.pet.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id },
     });
 
     if (!existing) {
@@ -113,9 +117,10 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
 
     const pet = await db.pet.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id },
     });
 
     if (!pet) {

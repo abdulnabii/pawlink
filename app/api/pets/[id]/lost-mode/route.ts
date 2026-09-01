@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { LostModeInputSchema } from "@/lib/validation";
 import { enqueueNotificationJob } from "@/lib/queue/worker";
@@ -10,11 +10,12 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
     const body = await req.json();
     const validated = LostModeInputSchema.parse(body);
 
     const pet = await db.pet.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id },
       include: {
         tagAssignments: {
           where: { unassignedAt: null },
@@ -39,7 +40,7 @@ export async function POST(
       });
       const currentPlan = (subscription?.plan || "FREE").toUpperCase();
 
-      if (currentPlan === "FREE") {
+      if (!isAdmin && currentPlan === "FREE") {
         return NextResponse.json(
           {
             error: "PLAN_UPGRADE_REQUIRED",

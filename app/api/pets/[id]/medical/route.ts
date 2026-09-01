@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { MedicalRecordInputSchema } from "@/lib/validation";
 
@@ -9,8 +9,9 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
     const pet = await db.pet.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id },
     });
 
     if (!pet) {

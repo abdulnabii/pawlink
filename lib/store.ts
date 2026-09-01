@@ -571,7 +571,11 @@ export class ResilientDataStore {
   async findPetFirst(args: any) {
     await this.syncFromCloud();
     if (args?.where?.id) {
-      const pet = this.pets.find((p) => p.id === args.where.id);
+      const pet = this.pets.find((p) => {
+        if (p.id !== args.where.id) return false;
+        if (args.where.userId && p.userId !== args.where.userId) return false;
+        return true;
+      });
       if (pet) return this.hydratePet(pet);
       return null;
     }

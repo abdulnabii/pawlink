@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateFinderToken } from "@/lib/crypto";
 import { z } from "zod";
@@ -38,14 +38,17 @@ export async function GET(req: NextRequest) {
 
   if (session) {
     // Owner inbox
+    const isAdmin = session.role === "ADMIN" || isAdminEmail(session.email);
     const petId = req.nextUrl.searchParams.get("petId");
     const conversations = await db.conversation.findMany({
-      where: {
-        pet: {
-          userId: session.id,
-          ...(petId ? { id: petId } : {}),
-        },
-      },
+      where: isAdmin
+        ? (petId ? { petId } : {})
+        : {
+            pet: {
+              userId: session.id,
+              ...(petId ? { id: petId } : {}),
+            },
+          },
       include: {
         pet: {
           select: { id: true, name: true, photoUrl: true },

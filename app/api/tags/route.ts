@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateActivationPin, generateTagCode } from "@/lib/crypto";
 import { getTagRecoveryUrl } from "@/lib/qr";
@@ -8,15 +8,18 @@ import { sanitizePrisma } from "@/lib/sanitize";
 export async function GET() {
   try {
     const user = await requireAuth();
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
 
     const tags = await db.tag.findMany({
-      where: {
-        assignments: {
-          some: {
-            assignedById: user.id,
+      where: isAdmin
+        ? {}
+        : {
+            assignments: {
+              some: {
+                assignedById: user.id,
+              },
+            },
           },
-        },
-      },
       include: {
         assignments: {
           include: {

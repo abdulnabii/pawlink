@@ -1,11 +1,12 @@
-﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string; photoId: string } }) {
   try {
     const user = await requireAuth();
-    const pet = await db.pet.findFirst({ where: { id: params.id, userId: user.id } });
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
+    const pet = await db.pet.findFirst({ where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id } });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     const photo = await db.petPhoto.findFirst({ where: { id: params.photoId, petId: params.id } });
     if (!photo) return NextResponse.json({ error: "Photo not found" }, { status: 404 });
@@ -28,7 +29,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 export async function PATCH(req: NextRequest, { params }: { params: { id: string; photoId: string } }) {
   try {
     const user = await requireAuth();
-    const pet = await db.pet.findFirst({ where: { id: params.id, userId: user.id } });
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
+    const pet = await db.pet.findFirst({ where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id } });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     const photo = await db.petPhoto.findFirst({ where: { id: params.photoId, petId: params.id } });
     if (!photo) return NextResponse.json({ error: "Photo not found" }, { status: 404 });

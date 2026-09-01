@@ -1,11 +1,12 @@
-﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuth();
-    const pet = await db.pet.findFirst({ where: { id: params.id, userId: user.id } });
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
+    const pet = await db.pet.findFirst({ where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id } });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     const photos = await db.petPhoto.findMany({
       where: { petId: params.id },
@@ -20,7 +21,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuth();
-    const pet = await db.pet.findFirst({ where: { id: params.id, userId: user.id } });
+    const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
+    const pet = await db.pet.findFirst({ where: isAdmin ? { id: params.id } : { id: params.id, userId: user.id } });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     const body = await req.json();
     const { url, caption, isPrimary } = body;

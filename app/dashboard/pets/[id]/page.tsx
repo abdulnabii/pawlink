@@ -73,10 +73,10 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
     const timer = setTimeout(() => controller.abort(), 7000);
 
     Promise.all([
-      fetch(`/api/pets/${petId}`, { signal: controller.signal })
+      fetch(`/api/pets/${petId}`, { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ error: "Failed to load pet data" })),
-      fetch("/api/subscription", { signal: controller.signal })
+      fetch("/api/subscription", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({})),
     ])
