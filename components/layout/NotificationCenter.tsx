@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   X,
@@ -12,6 +13,7 @@ import {
   AlertTriangle,
   Info,
   ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 
 interface Notification {
@@ -49,6 +51,7 @@ function NotifIcon({ type }: { type: string }) {
 }
 
 export function NotificationCenter() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -66,12 +69,19 @@ export function NotificationCenter() {
     } catch {}
   }, []);
 
-  // Initial fetch + 30s polling
+  // Initial fetch + 30s polling + window event listener
   useEffect(() => {
     fetchNotifications();
     intervalRef.current = setInterval(fetchNotifications, 30_000);
+
+    const handleUpdate = () => {
+      fetchNotifications();
+    };
+    window.addEventListener("pawlink-notifications-updated", handleUpdate);
+
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      window.removeEventListener("pawlink-notifications-updated", handleUpdate);
     };
   }, [fetchNotifications]);
 
@@ -87,13 +97,28 @@ export function NotificationCenter() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const markOneRead = async (id: string) => {
+  const markOneRead = async (id: string, notifType?: string) => {
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
+      fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, status: "READ" } : n))
       );
       setUnreadCount((c) => Math.max(0, c - 1));
+
+      // Route to relevant dashboard section
+      if (notifType) {
+        const t = notifType.toUpperCase();
+        if (t.includes("MESSAGE")) {
+          router.push("/dashboard/messages");
+          setOpen(false);
+        } else if (t.includes("SCAN") || t.includes("LOCATION") || t.includes("LOST") || t.includes("RECOVERY")) {
+          router.push("/dashboard/pets");
+          setOpen(false);
+        } else if (t.includes("SUBSCRIPTION") || t.includes("PLAN") || t.includes("PAYMENT")) {
+          router.push("/dashboard/settings");
+          setOpen(false);
+        }
+      }
     } catch {}
   };
 
@@ -114,15 +139,15 @@ export function NotificationCenter() {
       <button
         onClick={() => setOpen((o) => !o)}
         title="Notifications"
-        className={`relative p-2 rounded-xl transition-colors ${
+        className={`relative p-2 rounded-xl transition-all ${
           open
-            ? "bg-teal-500/20 text-teal-300"
+            ? "bg-teal-500/20 text-teal-300 ring-2 ring-teal-500/30"
             : "text-slate-400 hover:bg-slate-800 hover:text-white"
         }`}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-md animate-pulse">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shadow-red-500/50 animate-pulse ring-2 ring-slate-900">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -130,14 +155,14 @@ export function NotificationCenter() {
 
       {/* Dropdown Panel */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[9999] overflow-hidden animate-fadeIn">
+        <div className="absolute right-0 sm:right-auto sm:left-0 md:left-0 mt-2 w-[300px] sm:w-[360px] md:w-[380px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-[99999] overflow-hidden animate-fadeIn">
           {/* Panel Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-teal-400" />
               <span className="text-sm font-bold">Notifications</span>
               {unreadCount > 0 && (
-                <span className="text-[10px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded-full shadow-sm">
                   {unreadCount} new
                 </span>
               )}
@@ -148,14 +173,15 @@ export function NotificationCenter() {
                   onClick={markAllRead}
                   disabled={markingAll}
                   title="Mark all as read"
-                  className="p-1.5 text-slate-400 hover:text-teal-300 transition-colors rounded-lg"
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:text-teal-300 hover:bg-slate-800 transition-colors rounded-lg"
                 >
-                  <CheckCheck className="w-4 h-4" />
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  <span>Read all</span>
                 </button>
               )}
               <button
                 onClick={() => setOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -166,10 +192,12 @@ export function NotificationCenter() {
           <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                <Bell className="w-8 h-8 text-slate-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">All quiet!</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Scan alerts, finder messages, and plan updates will appear here.
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                  <Bell className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-bold text-slate-800">All caught up!</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-[220px]">
+                  Emergency scan alerts, finder messages, and recovery updates will appear here.
                 </p>
               </div>
             ) : (
@@ -178,16 +206,16 @@ export function NotificationCenter() {
                 return (
                   <div
                     key={notif.id}
-                    onClick={() => isUnread && markOneRead(notif.id)}
-                    className={`flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${
+                    onClick={() => markOneRead(notif.id, notif.type)}
+                    className={`flex items-start gap-3 px-4 py-3.5 transition-all cursor-pointer group ${
                       isUnread
-                        ? "bg-teal-50/60 hover:bg-teal-50"
+                        ? "bg-teal-50/70 hover:bg-teal-100/60"
                         : "bg-white hover:bg-slate-50"
                     }`}
                   >
                     {/* Icon */}
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                      isUnread ? "bg-teal-100" : "bg-slate-100"
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm ${
+                      isUnread ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500"
                     }`}>
                       <NotifIcon type={notif.type} />
                     </div>
@@ -199,15 +227,21 @@ export function NotificationCenter() {
                           {notif.title}
                         </p>
                         {isUnread && (
-                          <span className="w-2 h-2 bg-teal-500 rounded-full shrink-0 mt-1" />
+                          <span className="w-2 h-2 bg-teal-500 rounded-full shrink-0 mt-1 animate-pulse" />
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-snug mt-0.5 line-clamp-2">
+                      <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5 line-clamp-2">
                         {notif.body}
                       </p>
-                      <p className="text-[10px] text-slate-400 font-medium mt-1" suppressHydrationWarning>
-                        {timeAgo(notif.createdAt)}
-                      </p>
+                      <div className="flex items-center justify-between mt-1.5">
+                        <span className="text-[10px] text-slate-400 font-medium" suppressHydrationWarning>
+                          {timeAgo(notif.createdAt)}
+                        </span>
+                        <span className="text-[10px] font-semibold text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                          <span>View</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -217,10 +251,14 @@ export function NotificationCenter() {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 text-center">
-              <p className="text-[11px] text-slate-400 font-medium">
-                Showing last {notifications.length} notifications
-              </p>
+            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span>{unreadCount > 0 ? `${unreadCount} unread` : "All read"}</span>
+              <button
+                onClick={markAllRead}
+                className="font-semibold text-teal-600 hover:text-teal-700 hover:underline"
+              >
+                Mark all as read
+              </button>
             </div>
           )}
         </div>

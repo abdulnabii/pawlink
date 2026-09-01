@@ -290,6 +290,49 @@ export class ResilientDataStore {
         ],
       },
     ];
+
+    this.notifications = [
+      {
+        id: "notif_seed_01",
+        userId: ownerId,
+        type: "TAG_SCANNED",
+        channel: "WHATSAPP",
+        title: "🚨 Max's QR Tag Scanned",
+        body: "Max's collar tag was scanned near Clifton Beach Park. Click to view recovery details.",
+        status: "SENT",
+        createdAt: new Date(Date.now() - 45 * 60 * 1000),
+      },
+      {
+        id: "notif_seed_02",
+        userId: ownerId,
+        type: "LOCATION_SHARED",
+        channel: "WHATSAPP",
+        title: "📍 Finder Shared GPS Location",
+        body: "A finder shared live coordinates for Max near Beach Avenue Cafe (~12m accuracy).",
+        status: "SENT",
+        createdAt: new Date(Date.now() - 40 * 60 * 1000),
+      },
+      {
+        id: "notif_seed_03",
+        userId: ownerId,
+        type: "MESSAGE_RECEIVED",
+        channel: "IN_APP",
+        title: "💬 New Finder Message Received",
+        body: "Sarah: 'Hi! I just found Max sitting near the beach cafe.'",
+        status: "SENT",
+        createdAt: new Date(Date.now() - 35 * 60 * 1000),
+      },
+      {
+        id: "notif_seed_04",
+        userId: ownerId,
+        type: "WELCOME",
+        channel: "EMAIL",
+        title: "🛡️ Welcome to PawLink!",
+        body: "Your pet recovery QR tags are active and protected by 24/7 instant scan alerts.",
+        status: "READ",
+        createdAt: new Date(Date.now() - 24 * 3600 * 1000),
+      },
+    ];
   }
 
   private cleanTag(tag: any) {
@@ -469,13 +512,22 @@ export class ResilientDataStore {
 
   async findUserFirst(args: any) {
     await this.syncFromCloud();
-    if (args?.where?.OR) {
+    if (!args?.where) return this.users[0] || null;
+    if (args.where.OR) {
       for (const cond of args.where.OR) {
         const found = await this.findUserUnique({ where: cond });
         if (found) return found;
       }
     }
-    return this.findUserUnique(args);
+    const where = args.where;
+    const user = this.users.find((u) => {
+      if (where.id && u.id !== where.id) return false;
+      if (where.email && u.email?.toLowerCase() !== where.email.toLowerCase()) return false;
+      if (where.authUserId && u.authUserId !== where.authUserId) return false;
+      if (where.role && u.role !== where.role) return false;
+      return true;
+    });
+    return user || null;
   }
 
   async createUser(args: any) {
@@ -1105,6 +1157,19 @@ export class ResilientDataStore {
     if (args?.where?.userId) {
       result = result.filter((n) => n.userId === args.where.userId);
     }
+    if (args?.where?.id) {
+      result = result.filter((n) => n.id === args.where.id);
+    }
+    if (args?.where?.status) {
+      if (typeof args.where.status === "object" && "not" in args.where.status) {
+        result = result.filter((n) => n.status !== args.where.status.not);
+      } else {
+        result = result.filter((n) => n.status === args.where.status);
+      }
+    }
+    if (args?.take) {
+      result = result.slice(0, args.take);
+    }
     return result;
   }
 
@@ -1113,6 +1178,7 @@ export class ResilientDataStore {
     const notification = {
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...args.data,
+      status: args.data.status || "SENT",
       createdAt: new Date(),
     };
     this.notifications.unshift(notification);
@@ -1134,7 +1200,17 @@ export class ResilientDataStore {
     let count = 0;
     const { where, data } = args;
     this.notifications.forEach((n) => {
-      if (!where?.userId || n.userId === where.userId) {
+      let matches = true;
+      if (where?.id && n.id !== where.id) matches = false;
+      if (where?.userId && n.userId !== where.userId) matches = false;
+      if (where?.status) {
+        if (typeof where.status === "object" && "not" in where.status) {
+          if (n.status === where.status.not) matches = false;
+        } else if (n.status !== where.status) {
+          matches = false;
+        }
+      }
+      if (matches) {
         Object.assign(n, data);
         count++;
       }

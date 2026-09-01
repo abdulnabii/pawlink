@@ -50,30 +50,22 @@ export class NotificationService {
       isPlanEntitledToWhatsApp &&
       (prefs ? prefs.whatsappEnabled && prefs.whatsappVerified && Boolean(recipientPhone) : Boolean(recipientPhone));
 
+    let effectiveChannel = "IN_APP";
+    let effectiveStatus = "SENT";
+    let providerId: string | undefined;
+    let providerError: string | undefined;
+
     if (shouldSendWhatsApp && recipientPhone) {
       primaryResult = await this.whatsAppProvider.send({
         ...payload,
         recipientPhone,
       });
-
-      // Record WhatsApp notification in DB
-      await db.notification.create({
-        data: {
-          userId: user.id,
-          type: payload.type,
-          title: payload.title,
-          body: payload.body,
-          channel: "WHATSAPP",
-          status: primaryResult.success ? "SENT" : "FAILED",
-          providerId: primaryResult.providerId,
-          error: primaryResult.error,
-          metadata: JSON.stringify({
-            ...payload.metadata,
-            approximateLocation: payload.approximateLocation,
-            recipientPhone,
-          }),
-        },
-      });
+      if (primaryResult.success) {
+        effectiveChannel = "WHATSAPP";
+        providerId = primaryResult.providerId;
+      } else {
+        providerError = primaryResult.error;
+      }
     }
 
     // 3. Fallback to Email if WhatsApp wasn't sent or failed
@@ -85,39 +77,32 @@ export class NotificationService {
         ...payload,
         recipientEmail,
       });
-
-      await db.notification.create({
-        data: {
-          userId: user.id,
-          type: payload.type,
-          title: payload.title,
-          body: payload.body,
-          channel: "EMAIL",
-          status: fallbackResult.success ? "SENT" : "FAILED",
-          providerId: fallbackResult.providerId,
-          error: fallbackResult.error,
-          metadata: JSON.stringify({
-            ...payload.metadata,
-            isFallback: Boolean(primaryResult && !primaryResult.success),
-            recipientEmail,
-          }),
-        },
-      });
+      if (fallbackResult.success && effectiveChannel === "IN_APP") {
+        effectiveChannel = "EMAIL";
+        providerId = fallbackResult.providerId;
+      } else if (!fallbackResult.success && !providerError) {
+        providerError = fallbackResult.error;
+      }
     }
 
-    // 4. Always record IN_APP Notification for dashboard feed
+    // 4. Create single consolidated notification in database for user dashboard
     await db.notification.create({
       data: {
         userId: user.id,
         type: payload.type,
         title: payload.title,
         body: payload.body,
-        channel: "IN_APP",
-        status: "DELIVERED",
+        channel: effectiveChannel,
+        status: effectiveStatus,
+        providerId,
+        error: providerError,
         metadata: JSON.stringify({
           ...payload.metadata,
           approximateLocation: payload.approximateLocation,
           tagCode: payload.tagCode,
+          recipientPhone,
+          recipientEmail,
+          isFallback: Boolean(primaryResult && !primaryResult.success),
         }),
       },
     });
