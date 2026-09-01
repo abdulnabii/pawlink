@@ -584,9 +584,12 @@ export class ResilientDataStore {
     const recoveryEvents = this.recoveryEvents.filter((e) => e.petId === pet.id);
     const conversations = this.conversations.filter((cv) => cv.petId === pet.id);
     const medicalRecords = this.medicalRecords.filter((m) => m.petId === pet.id);
+    const activeCase = recoveryCases.find((c) => c.status === "OPEN");
+    const isLost = pet.status === "LOST" || Boolean(activeCase);
 
     return {
       ...pet,
+      status: isLost ? "LOST" : (pet.status === "LOST" ? "SAFE" : (pet.status || "SAFE")),
       user: owner
         ? {
             id: owner.id,

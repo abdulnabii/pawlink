@@ -95,7 +95,7 @@ export function toPublicPetResponse(
     photoUrl: pet.photoUrl,
     personality: pet.personality,
     specialInstructions: pet.specialInstructions,
-    status: pet.status as any,
+    status: (isLost ? "LOST" : (pet.status === "LOST" ? "SAFE" : (pet.status || "SAFE"))) as any,
     isLost,
     recoveryCase: activeRecoveryCase
       ? {
