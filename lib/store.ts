@@ -49,7 +49,7 @@ export class ResilientDataStore {
         email: "owner@pawlink.pet",
         passwordHash: "$2a$10$fWvB30K5R7pW4N9y0lU5mOI6iO0m/v2R3hP3E0gY5e8G9d6c7b8a.", // password123
         name: "Ali Khan",
-        phone: "+14155552671",
+        phone: "+923001234567",
         role: "OWNER",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -57,7 +57,7 @@ export class ResilientDataStore {
           whatsappEnabled: true,
           whatsappVerified: true,
           emailEnabled: true,
-          notificationPhone: "+14155552671",
+          notificationPhone: "+923001234567",
         },
       },
       {
@@ -65,9 +65,16 @@ export class ResilientDataStore {
         email: "abdulnabi.khaskheli@gmail.com",
         passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
         name: "Abdul Nabi Khaskheli",
+        phone: "+923001234567",
         role: "ADMIN",
         createdAt: new Date(),
         updatedAt: new Date(),
+        notificationPreference: {
+          whatsappEnabled: true,
+          whatsappVerified: true,
+          emailEnabled: true,
+          notificationPhone: "+923001234567",
+        },
       },
     ];
 
@@ -88,10 +95,11 @@ export class ResilientDataStore {
         personality: "Friendly, loves treats, gentle with children",
         specialInstructions: "Responds to sit and shake. Allergic to chicken.",
         status: "LOST",
+        contactPhone: "+923001234567",
         allowWhatsApp: true,
         allowPhoneCall: true,
         allowInAppChat: true,
-        hideOwnerPhone: true,
+        hideOwnerPhone: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         medicalRecords: [
@@ -115,6 +123,7 @@ export class ResilientDataStore {
         photoUrl: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80",
         personality: "Calm, vocal, affectionate",
         status: "SAFE",
+        contactPhone: "+923001234567",
         allowWhatsApp: true,
         allowInAppChat: true,
         hideOwnerPhone: true,
@@ -132,8 +141,10 @@ export class ResilientDataStore {
         color: "Tri-color",
         photoUrl: "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=600&auto=format&fit=crop&q=80",
         status: "SAFE",
+        contactPhone: "+923001234567",
         allowWhatsApp: true,
         allowInAppChat: true,
+        hideOwnerPhone: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         medicalRecords: [],
@@ -537,6 +548,18 @@ export class ResilientDataStore {
     if (!pet) return null;
     this.applyPrismaData(pet, args.data);
     pet.updatedAt = new Date();
+
+    // If pet status was set to SAFE, automatically resolve any active OPEN recovery cases
+    if (args.data?.status === "SAFE") {
+      this.recoveryCases
+        .filter((c) => c.petId === pet.id && c.status === "OPEN")
+        .forEach((c) => {
+          c.status = "RESOLVED";
+          c.resolvedAt = new Date();
+          c.updatedAt = new Date();
+        });
+    }
+
     await this.syncToCloud();
     return this.hydratePet(pet);
   }
@@ -757,6 +780,23 @@ export class ResilientDataStore {
     c.updatedAt = new Date();
     await this.syncToCloud();
     return c;
+  }
+
+  async updateManyRecoveryCases(args: any) {
+    await this.syncFromCloud();
+    let count = 0;
+    for (const c of this.recoveryCases) {
+      let matches = true;
+      if (args.where?.petId && c.petId !== args.where.petId) matches = false;
+      if (args.where?.status && c.status !== args.where.status) matches = false;
+      if (matches) {
+        this.applyPrismaData(c, args.data);
+        c.updatedAt = new Date();
+        count++;
+      }
+    }
+    await this.syncToCloud();
+    return { count };
   }
 
   // --- RECOVERY EVENTS ---

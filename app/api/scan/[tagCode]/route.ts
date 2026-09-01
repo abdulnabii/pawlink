@@ -47,6 +47,7 @@ export async function GET(
                     name: true,
                     phone: true,
                     email: true,
+                    notificationPreference: true,
                   },
                 },
               },

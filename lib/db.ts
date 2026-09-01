@@ -317,12 +317,14 @@ function createSelfHealingDb() {
         return cases[0] || null;
       },
       updateMany: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            await rawPrisma.recoveryCase.updateMany(args);
+            prismaRes = await rawPrisma.recoveryCase.updateMany(args);
           } catch {}
         }
-        return { count: 1 };
+        const storeRes = await resilientStore.updateManyRecoveryCases(args);
+        return prismaRes || storeRes;
       },
       create: async (args: any) => {
         let prismaRes = null;

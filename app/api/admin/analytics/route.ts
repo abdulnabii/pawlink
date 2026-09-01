@@ -11,6 +11,7 @@ export async function GET() {
       totalPets,
       totalTags,
       totalScans,
+      totalLostCases,
       resolvedRecoveryCases,
       scansWithLocation,
       allScans,
@@ -19,6 +20,7 @@ export async function GET() {
       db.pet.count(),
       db.tag.count(),
       db.scanEvent.count(),
+      db.recoveryCase.count(),
       db.recoveryCase.count({ where: { status: "RESOLVED" } }),
       db.locationEvent.count(),
       db.scanEvent.findMany({
@@ -48,14 +50,23 @@ export async function GET() {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Funnel Steps
+    // Funnel Steps (Calibrated to represent true step-by-step conversion ratios)
     const funnel = [
       { step: "Registered Owners", count: totalUsers, rate: 100 },
-      { step: "Created Pet Profile", count: totalPets, rate: totalUsers > 0 ? Math.round((totalPets / totalUsers) * 100) : 0 },
-      { step: "Activated Collar Tag", count: totalTags, rate: totalPets > 0 ? Math.round((totalTags / totalPets) * 100) : 0 },
+      { step: "Created Pet Profile", count: totalPets, rate: totalUsers > 0 ? Math.min(100, Math.round((totalPets / totalUsers) * 100)) : 0 },
+      { step: "Activated Collar Tag", count: totalTags, rate: totalPets > 0 ? Math.min(100, Math.round((totalTags / totalPets) * 100)) : 0 },
       { step: "QR Tag Scanned", count: totalScans, rate: totalTags > 0 ? Math.min(100, Math.round((totalScans / totalTags) * 100)) : 0 },
-      { step: "Location Pinned", count: scansWithLocation, rate: totalScans > 0 ? Math.round((scansWithLocation / totalScans) * 100) : 0 },
-      { step: "Pet Reunited", count: resolvedRecoveryCases, rate: totalPets > 0 ? Math.round((resolvedRecoveryCases / totalPets) * 100) : 0 },
+      { step: "Location Pinned", count: scansWithLocation, rate: totalScans > 0 ? Math.min(100, Math.round((scansWithLocation / totalScans) * 100)) : 0 },
+      {
+        step: "Pet Reunited",
+        count: resolvedRecoveryCases,
+        rate:
+          totalLostCases > 0
+            ? Math.min(100, Math.round((resolvedRecoveryCases / totalLostCases) * 100))
+            : resolvedRecoveryCases > 0
+            ? 100
+            : 0,
+      },
     ];
 
     return NextResponse.json({
@@ -67,7 +78,12 @@ export async function GET() {
         totalPets,
         totalTags,
         totalScans,
+        totalLostCases,
         totalRecoveries: resolvedRecoveryCases,
+        recoveryRate:
+          totalLostCases > 0
+            ? Math.round((resolvedRecoveryCases / totalLostCases) * 100)
+            : 100,
       },
     });
   } catch (err: unknown) {

@@ -31,7 +31,27 @@ export interface PublicPetResponse {
     allowPhoneCall: boolean;
     allowInAppChat: boolean;
     directPhone: string | null; // Only exposed if owner unchecked hideOwnerPhone
+    whatsappPhone: string | null; // Sanitized E.164 phone string for direct WhatsApp chat
   };
+}
+
+/**
+ * Strips non-digit characters from phone number to form a valid direct WhatsApp URL parameter
+ * e.g. "+92 (300) 123-4567" -> "923001234567", "03001234567" -> "923001234567"
+ */
+export function formatWhatsAppNumber(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (!digits) return null;
+  // If local Pakistani 11-digit format starting with 0 (e.g. 03001234567), convert to 923001234567
+  if (digits.startsWith("0") && digits.length === 11) {
+    return `92${digits.substring(1)}`;
+  }
+  // If local US 10-digit format (e.g. 4155552671), prepend 1
+  if (digits.length === 10 && !digits.startsWith("92")) {
+    return `1${digits}`;
+  }
+  return digits;
 }
 
 /**
@@ -42,6 +62,10 @@ export function toPublicPetResponse(
   pet: Pet & {
     medicalRecords?: PetMedicalRecord[];
     recoveryCases?: RecoveryCase[];
+    user?: {
+      phone?: string | null;
+      notificationPreference?: { notificationPhone?: string | null } | null;
+    } | null;
   },
   tag: Tag
 ): PublicPetResponse {
@@ -55,6 +79,12 @@ export function toPublicPetResponse(
       title: mr.title,
       description: mr.description,
     }));
+
+  const rawPhone =
+    pet.contactPhone ||
+    (pet as any).user?.phone ||
+    (pet as any).user?.notificationPreference?.notificationPhone ||
+    null;
 
   return {
     tagCode: tag.tagCode,
@@ -87,7 +117,8 @@ export function toPublicPetResponse(
       allowWhatsApp: pet.allowWhatsApp,
       allowPhoneCall: pet.allowPhoneCall,
       allowInAppChat: pet.allowInAppChat,
-      directPhone: pet.hideOwnerPhone ? null : pet.contactPhone,
+      directPhone: pet.hideOwnerPhone ? null : (pet.contactPhone || rawPhone),
+      whatsappPhone: pet.allowWhatsApp ? formatWhatsAppNumber(rawPhone) : null,
     },
   };
 }

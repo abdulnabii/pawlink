@@ -55,9 +55,16 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
   useEffect(() => {
     if (!tagCode) return;
 
-    fetch(`/api/scan/${tagCode}`)
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4500);
+
+    fetch(`/api/scan/${tagCode}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
       .then((res) => res.json())
       .then((data) => {
+        clearTimeout(timer);
         if (data.error) {
           setError(data.message || data.error);
         } else if (data.pet) {
@@ -66,9 +73,27 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
         setLoading(false);
       })
       .catch((err) => {
-        setError("Unable to connect to recovery servers. Please check your internet connection.");
-        setLoading(false);
+        clearTimeout(timer);
+        if (err.name === "AbortError") {
+          // Quick retry with cache fallback
+          fetch(`/api/scan/${tagCode}`)
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.pet) setPetData(d.pet);
+              else setError(d.message || d.error || "Connection timed out");
+            })
+            .catch(() => setError("Connection timed out. Please refresh the page."))
+            .finally(() => setLoading(false));
+        } else {
+          setError("Unable to connect to recovery servers. Please check your internet connection.");
+          setLoading(false);
+        }
       });
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [tagCode]);
 
   const sendCoordinates = async (lat: number, lng: number, acc: number, addr: string) => {
@@ -452,12 +477,12 @@ export default function PublicFinderPage({ params }: { params?: { tagCode: strin
               {petData.contactOptions.allowWhatsApp && (
                 <button
                   onClick={() => {
-                    window.open(
-                      `https://wa.me/?text=${encodeURIComponent(
-                        `Hi, I just scanned ${petData.petName}'s PawLink tag (${petData.tagCode})! I would like to help reunite your pet.`
-                      )}`,
-                      "_blank"
-                    );
+                    const waPhone = petData.contactOptions.whatsappPhone;
+                    const message = `Hi, I just scanned ${petData.petName}'s PawLink tag (${petData.tagCode})! I would like to help reunite your pet.`;
+                    const waUrl = waPhone
+                      ? `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`
+                      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+                    window.open(waUrl, "_blank");
                   }}
                   className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm flex items-center justify-center gap-2 transition-colors"
                 >
