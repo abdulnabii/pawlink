@@ -151,7 +151,7 @@ function createSelfHealingDb() {
             return await rawPrisma.pet.delete(args);
           } catch {}
         }
-        return { success: true };
+        return await resilientStore.deletePet(args);
       },
     },
     petPhoto: {

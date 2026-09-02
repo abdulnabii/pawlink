@@ -6,13 +6,14 @@ import { sanitizePrisma } from "@/lib/sanitize";
 import { generateTagCode, generateActivationPin } from "@/lib/crypto";
 import { getTagRecoveryUrl } from "@/lib/qr";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await requireAuth();
     const isAdmin = user.role === "ADMIN" || isAdminEmail(user.email);
+    const showAll = req.nextUrl?.searchParams?.get("all") === "true";
 
     const pets = await db.pet.findMany({
-      where: isAdmin ? {} : { userId: user.id },
+      where: (isAdmin && showAll) ? {} : { userId: user.id },
       include: {
         tagAssignments: {
           where: { unassignedAt: null },
@@ -115,6 +116,9 @@ export async function POST(req: NextRequest) {
         assignedById: user.id,
       },
     });
+
+    const { resilientStore } = await import("@/lib/store");
+    await resilientStore.syncToCloud(true);
 
     return NextResponse.json({ success: true, pet, tag }, { status: 201 });
   } catch (err: unknown) {

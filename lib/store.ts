@@ -370,26 +370,27 @@ export class ResilientDataStore {
     }
   }
 
-  private mergeArrayById(currentArr: any[], incomingArr: any[]) {
-    if (!Array.isArray(incomingArr) || incomingArr.length === 0) return currentArr;
+  private syncArrayFromCloud(localArr: any[], cloudArr: any[]) {
+    if (!Array.isArray(cloudArr)) return localArr;
     const map = new Map();
-    for (const item of currentArr) {
+    // Cloud state is the primary persistent store
+    for (const item of cloudArr) {
       if (item && item.id) map.set(item.id, item);
     }
-    for (const item of incomingArr) {
+    // Only keep local items that are strictly newer or unpersisted
+    for (const item of localArr) {
       if (item && item.id) {
-        const existing = map.get(item.id);
-        if (!existing) {
-          map.set(item.id, item);
+        const cloudItem = map.get(item.id);
+        if (!cloudItem) {
+          // If created locally during this session, keep it
+          if (item.createdAt && new Date(item.createdAt).getTime() > this.lastCloudSync) {
+            map.set(item.id, item);
+          }
         } else {
-          // Compare updatedAt/createdAt timestamps so newer in-memory mutations are NEVER overwritten by stale cloud data
-          const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
-          const incomingTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
-          if (incomingTime >= existingTime) {
-            map.set(item.id, { ...existing, ...item });
-          } else {
-            // Local memory has a newer update! Keep local!
-            map.set(item.id, existing);
+          const localTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+          const cloudTime = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+          if (localTime > cloudTime) {
+            map.set(item.id, item);
           }
         }
       }
@@ -432,22 +433,22 @@ export class ResilientDataStore {
         const rows = await res.json();
         if (rows && rows[0]?.description) {
           const state = JSON.parse(rows[0].description);
-          if (Array.isArray(state.users)) this.users = this.mergeArrayById(this.users, state.users);
-          if (Array.isArray(state.pets)) this.pets = this.mergeArrayById(this.pets, state.pets);
+          if (Array.isArray(state.users)) this.users = this.syncArrayFromCloud(this.users, state.users);
+          if (Array.isArray(state.pets)) this.pets = this.syncArrayFromCloud(this.pets, state.pets);
           if (Array.isArray(state.tags)) {
-            this.tags = this.mergeArrayById(this.tags, state.tags).map((t) => this.cleanTag(t));
+            this.tags = this.syncArrayFromCloud(this.tags, state.tags).map((t) => this.cleanTag(t));
           }
-          if (Array.isArray(state.tagAssignments)) this.tagAssignments = this.mergeArrayById(this.tagAssignments, state.tagAssignments);
-          if (Array.isArray(state.recoveryCases)) this.recoveryCases = this.mergeArrayById(this.recoveryCases, state.recoveryCases);
-          if (Array.isArray(state.recoveryEvents)) this.recoveryEvents = this.mergeArrayById(this.recoveryEvents, state.recoveryEvents);
-          if (Array.isArray(state.scanEvents)) this.scanEvents = this.mergeArrayById(this.scanEvents, state.scanEvents);
-          if (Array.isArray(state.locationEvents)) this.locationEvents = this.mergeArrayById(this.locationEvents, state.locationEvents);
-          if (Array.isArray(state.conversations)) this.conversations = this.mergeArrayById(this.conversations, state.conversations);
-          if (Array.isArray(state.subscriptions)) this.subscriptions = this.mergeArrayById(this.subscriptions, state.subscriptions);
-          if (Array.isArray(state.paymentRequests)) this.paymentRequests = this.mergeArrayById(this.paymentRequests, state.paymentRequests);
-          if (Array.isArray(state.notifications)) this.notifications = this.mergeArrayById(this.notifications, state.notifications);
-          if (Array.isArray(state.notificationJobs)) this.notificationJobs = this.mergeArrayById(this.notificationJobs, state.notificationJobs);
-          if (Array.isArray(state.medicalRecords)) this.medicalRecords = this.mergeArrayById(this.medicalRecords, state.medicalRecords);
+          if (Array.isArray(state.tagAssignments)) this.tagAssignments = this.syncArrayFromCloud(this.tagAssignments, state.tagAssignments);
+          if (Array.isArray(state.recoveryCases)) this.recoveryCases = this.syncArrayFromCloud(this.recoveryCases, state.recoveryCases);
+          if (Array.isArray(state.recoveryEvents)) this.recoveryEvents = this.syncArrayFromCloud(this.recoveryEvents, state.recoveryEvents);
+          if (Array.isArray(state.scanEvents)) this.scanEvents = this.syncArrayFromCloud(this.scanEvents, state.scanEvents);
+          if (Array.isArray(state.locationEvents)) this.locationEvents = this.syncArrayFromCloud(this.locationEvents, state.locationEvents);
+          if (Array.isArray(state.conversations)) this.conversations = this.syncArrayFromCloud(this.conversations, state.conversations);
+          if (Array.isArray(state.subscriptions)) this.subscriptions = this.syncArrayFromCloud(this.subscriptions, state.subscriptions);
+          if (Array.isArray(state.paymentRequests)) this.paymentRequests = this.syncArrayFromCloud(this.paymentRequests, state.paymentRequests);
+          if (Array.isArray(state.notifications)) this.notifications = this.syncArrayFromCloud(this.notifications, state.notifications);
+          if (Array.isArray(state.notificationJobs)) this.notificationJobs = this.syncArrayFromCloud(this.notificationJobs, state.notificationJobs);
+          if (Array.isArray(state.medicalRecords)) this.medicalRecords = this.syncArrayFromCloud(this.medicalRecords, state.medicalRecords);
         }
       }
     } catch {} finally {
@@ -461,7 +462,7 @@ export class ResilientDataStore {
     this.fetchCloudState().catch(() => {});
   }
 
-  async syncToCloud(immediate = false) {
+  async syncToCloud(immediate = true) {
     if (this.saveDebounceTimer) {
       clearTimeout(this.saveDebounceTimer);
       this.saveDebounceTimer = null;
@@ -588,15 +589,28 @@ export class ResilientDataStore {
   async findPetFirst(args: any) {
     await this.syncFromCloud();
     if (args?.where?.id) {
-      const pet = this.pets.find((p) => {
+      let pet = this.pets.find((p) => {
         if (p.id !== args.where.id) return false;
         if (args.where.userId && p.userId !== args.where.userId) return false;
         return true;
       });
+      // Cache-miss fallback: if not in warm memory, force re-sync from Supabase before returning null
+      if (!pet) {
+        await this.fetchCloudState();
+        pet = this.pets.find((p) => {
+          if (p.id !== args.where.id) return false;
+          if (args.where.userId && p.userId !== args.where.userId) return false;
+          return true;
+        });
+      }
       if (pet) return this.hydratePet(pet);
       return null;
     }
-    const pets = await this.findPets(args);
+    let pets = await this.findPets(args);
+    if (!pets[0] && args?.where?.userId) {
+      await this.fetchCloudState();
+      pets = await this.findPets(args);
+    }
     return pets[0] || null;
   }
 
@@ -611,7 +625,7 @@ export class ResilientDataStore {
       updatedAt: new Date(),
     };
     this.pets.push(pet);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return this.hydratePet(pet);
   }
 
@@ -633,8 +647,22 @@ export class ResilientDataStore {
         });
     }
 
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return this.hydratePet(pet);
+  }
+
+  async deletePet(args: any) {
+    await this.syncFromCloud();
+    const id = args?.where?.id || args?.id || args;
+    const initialLen = this.pets.length;
+    this.pets = this.pets.filter((p) => p.id !== id);
+    this.tagAssignments = this.tagAssignments.filter((a) => a.petId !== id);
+    this.recoveryCases = this.recoveryCases.filter((c) => c.petId !== id);
+    this.recoveryEvents = this.recoveryEvents.filter((e) => e.petId !== id);
+    this.petPhotos = (this.petPhotos || []).filter((ph: any) => ph.petId !== id);
+    this.medicalRecords = (this.medicalRecords || []).filter((m: any) => m.petId !== id);
+    await this.syncToCloud(true);
+    return { count: initialLen - this.pets.length };
   }
 
   private hydratePet(pet: any) {
@@ -691,16 +719,28 @@ export class ResilientDataStore {
     if (args?.where?.tagCode) {
       const rawTarget = (args.where.tagCode || "").trim().toUpperCase();
       const targetClean = rawTarget.replace(/[^A-Z0-9]/g, "");
-      const tag = this.tags.find((t) => {
+      let tag = this.tags.find((t) => {
         const rawCode = (t.tagCode || "").trim().toUpperCase();
         const codeClean = rawCode.replace(/[^A-Z0-9]/g, "");
         return rawCode === rawTarget || codeClean === targetClean;
       });
+      if (!tag) {
+        await this.fetchCloudState();
+        tag = this.tags.find((t) => {
+          const rawCode = (t.tagCode || "").trim().toUpperCase();
+          const codeClean = rawCode.replace(/[^A-Z0-9]/g, "");
+          return rawCode === rawTarget || codeClean === targetClean;
+        });
+      }
       if (!tag) return null;
       return this.hydrateTag(tag);
     }
     if (args?.where?.id) {
-      const tag = this.tags.find((t) => t.id === args.where.id);
+      let tag = this.tags.find((t) => t.id === args.where.id);
+      if (!tag) {
+        await this.fetchCloudState();
+        tag = this.tags.find((t) => t.id === args.where.id);
+      }
       if (!tag) return null;
       return this.hydrateTag(tag);
     }

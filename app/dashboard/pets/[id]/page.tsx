@@ -74,7 +74,15 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
 
     Promise.all([
       fetch(`/api/pets/${petId}`, { cache: "no-store", signal: controller.signal })
-        .then((res) => res.json())
+        .then(async (res) => {
+          if (!res.ok) {
+            // Auto-retry once after 600ms for serverless cross-lambda replication
+            await new Promise((r) => setTimeout(r, 600));
+            const retryRes = await fetch(`/api/pets/${petId}`, { cache: "no-store" }).catch(() => null);
+            if (retryRes && retryRes.ok) return await retryRes.json();
+          }
+          return await res.json();
+        })
         .catch(() => ({ error: "Failed to load pet data" })),
       fetch("/api/subscription", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
