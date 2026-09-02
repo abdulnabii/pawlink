@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { resilientStore } from "@/lib/store";
+import { db } from "@/lib/db";
 import { sanitizePrisma } from "@/lib/sanitize";
-import { enqueueNotificationJob } from "@/lib/queue/worker";
+import { enqueueNotificationJob, processNotificationQueue } from "@/lib/queue/worker";
 
 export async function POST(
   req: NextRequest,
@@ -25,7 +26,24 @@ export async function POST(
       );
     }
 
-    // Notify user
+    // 1. Immediately create in-app notification for the user
+    await db.notification.create({
+      data: {
+        userId: rejectedRequest.userId,
+        type: "PLAN_PAYMENT_REJECTED",
+        channel: "IN_APP",
+        status: "SENT",
+        title: `⚠️ Payment Verification Update`,
+        body: `Your payment request for ${rejectedRequest.requestedPlan} was declined: ${adminNotes}. Please contact support or submit a new transaction reference.`,
+        metadata: JSON.stringify({
+          plan: rejectedRequest.requestedPlan,
+          adminNotes,
+          paymentRequestId: rejectedRequest.id,
+        }),
+      },
+    });
+
+    // 2. Enqueue external notification
     await enqueueNotificationJob(
       rejectedRequest.userId,
       "PLAN_PAYMENT_REJECTED",
@@ -37,6 +55,9 @@ export async function POST(
       },
       `PLAN_REJECT:${rejectedRequest.id}`
     );
+
+    await processNotificationQueue(5).catch(() => {});
+    await resilientStore.syncToCloud(true);
 
     return NextResponse.json({
       success: true,

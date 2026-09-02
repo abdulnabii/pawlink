@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { resilientStore } from "@/lib/store";
+import { db } from "@/lib/db";
 import { sanitizePrisma } from "@/lib/sanitize";
 import { PLANS, BANK_PAYMENT_CONFIG } from "@/lib/plans";
-import { enqueueNotificationJob } from "@/lib/queue/worker";
+import { enqueueNotificationJob, processNotificationQueue } from "@/lib/queue/worker";
 
 export async function GET() {
   try {
@@ -64,25 +65,52 @@ export async function POST(req: NextRequest) {
       notes,
     });
 
-    // Notify admin via notification job
-    await enqueueNotificationJob(
-      "ADMIN",
-      "SUBSCRIPTION_PAYMENT_SUBMITTED",
-      {
-        userId: "ADMIN",
-        type: "PAYMENT_VERIFICATION_REQUESTED",
-        title: `💳 New Payment: ${user.name} (${planConfig.name})`,
-        body: `User ${user.email} submitted Rs ${planConfig.pricePKR} payment (TxID: ${transactionId}). Review & approve in Admin Portal.`,
-        metadata: {
+    // 1. Notify user in-app that payment proof was submitted
+    await db.notification.create({
+      data: {
+        userId: user.id,
+        type: "PAYMENT_SUBMITTED",
+        channel: "IN_APP",
+        status: "SENT",
+        title: `📋 Payment Verification in Review`,
+        body: `Your payment of Rs ${planConfig.pricePKR} (TxID: ${transactionId}) for ${planConfig.name} is received and pending admin approval.`,
+        metadata: JSON.stringify({
           plan: planConfig.id,
           amountPKR: planConfig.pricePKR,
           transactionId,
-          senderName,
-          userEmail: user.email,
-        },
+          paymentRequestId: paymentRequest.id,
+        }),
       },
-      `PAYMENT_REQ:${paymentRequest.id}`
+    });
+
+    // 2. Notify all Admin accounts in-app with valid admin userId
+    const allUsers = await resilientStore.getAllUsersForAdmin();
+    const adminUsers = allUsers.filter(
+      (u: any) => u.role === "ADMIN" || u.role === "SUPER_ADMIN" || u.email === "abdulnabi.khaskheli@gmail.com"
     );
+
+    for (const admin of adminUsers) {
+      await db.notification.create({
+        data: {
+          userId: admin.id,
+          type: "PAYMENT_VERIFICATION_REQUESTED",
+          channel: "IN_APP",
+          status: "SENT",
+          title: `💳 New Payment Request: ${user.name || user.email} (${planConfig.name})`,
+          body: `${user.name || user.email} submitted Rs ${planConfig.pricePKR} (TxID: ${transactionId}). Review & approve in Admin Portal.`,
+          metadata: JSON.stringify({
+            plan: planConfig.id,
+            amountPKR: planConfig.pricePKR,
+            transactionId,
+            senderName,
+            userEmail: user.email,
+            paymentRequestId: paymentRequest.id,
+          }),
+        },
+      });
+    }
+
+    await resilientStore.syncToCloud(true);
 
     return NextResponse.json({
       success: true,

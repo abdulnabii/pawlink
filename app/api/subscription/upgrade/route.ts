@@ -23,6 +23,15 @@ export async function POST(req: NextRequest) {
     });
 
     let updatedSubscription;
+    const now = new Date();
+    const nextMonth = new Date(now);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    if (nextMonth.getDate() !== now.getDate()) nextMonth.setDate(0);
+    const formattedExpiry = nextMonth.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
 
     if (existing) {
       updatedSubscription = await db.subscription.update({
@@ -30,10 +39,7 @@ export async function POST(req: NextRequest) {
         data: {
           plan: validPlan.id,
           status: "ACTIVE",
-          currentPeriodEnd:
-            validPlan.id === "FREE"
-              ? null
-              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          currentPeriodEnd: validPlan.id === "FREE" ? null : nextMonth,
           cancelAtPeriodEnd: false,
         },
       });
@@ -43,10 +49,24 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           plan: validPlan.id,
           status: "ACTIVE",
-          currentPeriodEnd:
-            validPlan.id === "FREE"
-              ? null
-              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          currentPeriodEnd: validPlan.id === "FREE" ? null : nextMonth,
+        },
+      });
+    }
+
+    if (validPlan.id !== "FREE") {
+      await db.notification.create({
+        data: {
+          userId: user.id,
+          type: "PLAN_UPGRADED",
+          channel: "IN_APP",
+          status: "SENT",
+          title: `🎉 Membership Active: ${validPlan.name}`,
+          body: `You have switched to ${validPlan.name}, valid until ${formattedExpiry}!`,
+          metadata: JSON.stringify({
+            plan: validPlan.id,
+            expiresAt: nextMonth.toISOString(),
+          }),
         },
       });
     }
@@ -64,6 +84,9 @@ export async function POST(req: NextRequest) {
         }),
       },
     });
+
+    const { resilientStore } = await import("@/lib/store");
+    await resilientStore.syncToCloud(true);
 
     return NextResponse.json({
       success: true,

@@ -44,10 +44,10 @@ export function DashboardNav() {
     const timer = setTimeout(() => controller.abort(), 7000);
 
     Promise.all([
-      fetch("/api/auth/me", { signal: controller.signal })
+      fetch("/api/auth/me", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ error: "UNAUTHORIZED", user: null })),
-      fetch("/api/subscription", { signal: controller.signal })
+      fetch("/api/subscription", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({})),
     ])
@@ -68,13 +68,15 @@ export function DashboardNav() {
   useEffect(() => {
     fetchNavUserData();
 
-    const handleAuthUpdated = () => {
+    const handleUpdate = () => {
       fetchNavUserData();
     };
 
-    window.addEventListener("pawlink-auth-updated", handleAuthUpdated);
+    window.addEventListener("pawlink-auth-updated", handleUpdate);
+    window.addEventListener("pawlink-subscription-updated", handleUpdate);
     return () => {
-      window.removeEventListener("pawlink-auth-updated", handleAuthUpdated);
+      window.removeEventListener("pawlink-auth-updated", handleUpdate);
+      window.removeEventListener("pawlink-subscription-updated", handleUpdate);
     };
   }, [pathname]);
 

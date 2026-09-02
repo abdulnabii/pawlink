@@ -382,7 +382,15 @@ export class ResilientDataStore {
         if (!existing) {
           map.set(item.id, item);
         } else {
-          map.set(item.id, { ...existing, ...item });
+          // Compare updatedAt/createdAt timestamps so newer in-memory mutations are NEVER overwritten by stale cloud data
+          const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+          const incomingTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+          if (incomingTime >= existingTime) {
+            map.set(item.id, { ...existing, ...item });
+          } else {
+            // Local memory has a newer update! Keep local!
+            map.set(item.id, existing);
+          }
         }
       }
     }
@@ -417,7 +425,7 @@ export class ResilientDataStore {
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
         cache: "no-store",
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(4000),
       });
 
       if (res.ok) {
@@ -437,6 +445,8 @@ export class ResilientDataStore {
           if (Array.isArray(state.conversations)) this.conversations = this.mergeArrayById(this.conversations, state.conversations);
           if (Array.isArray(state.subscriptions)) this.subscriptions = this.mergeArrayById(this.subscriptions, state.subscriptions);
           if (Array.isArray(state.paymentRequests)) this.paymentRequests = this.mergeArrayById(this.paymentRequests, state.paymentRequests);
+          if (Array.isArray(state.notifications)) this.notifications = this.mergeArrayById(this.notifications, state.notifications);
+          if (Array.isArray(state.notificationJobs)) this.notificationJobs = this.mergeArrayById(this.notificationJobs, state.notificationJobs);
           if (Array.isArray(state.medicalRecords)) this.medicalRecords = this.mergeArrayById(this.medicalRecords, state.medicalRecords);
         }
       }
@@ -451,10 +461,15 @@ export class ResilientDataStore {
     this.fetchCloudState().catch(() => {});
   }
 
-  async syncToCloud() {
-    // Non-blocking debounced cloud synchronization
+  async syncToCloud(immediate = false) {
     if (this.saveDebounceTimer) {
       clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+
+    if (immediate) {
+      await this.executeCloudSave();
+      return;
     }
 
     this.saveDebounceTimer = setTimeout(() => {
@@ -476,6 +491,8 @@ export class ResilientDataStore {
         conversations: this.conversations,
         subscriptions: this.subscriptions,
         paymentRequests: this.paymentRequests,
+        notifications: this.notifications,
+        notificationJobs: this.notificationJobs,
         medicalRecords: this.medicalRecords,
         updatedAt: new Date().toISOString(),
       };
@@ -496,7 +513,7 @@ export class ResilientDataStore {
           Prefer: "resolution=merge-duplicates",
         },
         body,
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(5000),
       });
     } catch {}
   }
@@ -1226,7 +1243,20 @@ export class ResilientDataStore {
   // --- SUBSCRIPTION METHODS ---
   async getUserSubscription(userId: string) {
     await this.syncFromCloud();
-    let sub = this.subscriptions.find((s) => s.userId === userId && s.status === "ACTIVE");
+    const activeSubs = this.subscriptions.filter(
+      (s) => s.userId === userId && s.status === "ACTIVE"
+    );
+
+    // Prioritize paid active tiers (PRO > PLUS > latest active)
+    let sub =
+      activeSubs.find((s) => s.plan === "PRO") ||
+      activeSubs.find((s) => s.plan === "PLUS") ||
+      activeSubs.sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt || 0).getTime() -
+          new Date(a.updatedAt || a.createdAt || 0).getTime()
+      )[0];
+
     if (!sub) {
       // Default to Basic ID (FREE)
       sub = {
@@ -1240,7 +1270,7 @@ export class ResilientDataStore {
         updatedAt: new Date(),
       };
       this.subscriptions.push(sub);
-      await this.syncToCloud();
+      await this.syncToCloud(true);
     }
     return sub;
   }
@@ -1273,7 +1303,7 @@ export class ResilientDataStore {
       updatedAt: new Date(),
     };
     this.subscriptions.push(sub);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return sub;
   }
 
@@ -1283,7 +1313,7 @@ export class ResilientDataStore {
     if (!sub) return null;
     this.applyPrismaData(sub, args.data);
     sub.updatedAt = new Date();
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return sub;
   }
 
@@ -1307,7 +1337,7 @@ export class ResilientDataStore {
       updatedAt: new Date(),
     };
     this.paymentRequests.push(req);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return req;
   }
 
@@ -1336,27 +1366,51 @@ export class ResilientDataStore {
     req.reviewedAt = new Date();
     req.updatedAt = new Date();
 
+    // Calculate next month ending date on the exact same date of the month:
+    const now = new Date();
+    const nextMonth = new Date(now);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    if (nextMonth.getDate() !== now.getDate()) {
+      nextMonth.setDate(0); // If day rolled over (e.g. Jan 31 -> Feb 28), cap at last day of next month
+    }
+
     // Activate the subscription for this user
     let sub = this.subscriptions.find((s) => s.userId === req.userId);
     if (sub) {
       sub.plan = req.requestedPlan;
       sub.status = "ACTIVE";
-      sub.currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      sub.currentPeriodEnd = nextMonth;
       sub.updatedAt = new Date();
     } else {
-      this.subscriptions.push({
+      sub = {
         id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         userId: req.userId,
         plan: req.requestedPlan,
         status: "ACTIVE",
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        currentPeriodEnd: nextMonth,
         cancelAtPeriodEnd: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      };
+      this.subscriptions.push(sub);
     }
 
-    await this.syncToCloud();
+    // Clean up duplicate old free subscriptions for this user
+    this.subscriptions.forEach((s) => {
+      if (s.userId === req.userId && s.id !== sub.id && s.status === "ACTIVE") {
+        s.status = "INACTIVE";
+        s.updatedAt = new Date();
+      }
+    });
+
+    // Also update plan on User object if present
+    const user = this.users.find((u) => u.id === req.userId);
+    if (user) {
+      user.plan = req.requestedPlan;
+      user.updatedAt = new Date();
+    }
+
+    await this.syncToCloud(true);
     return req;
   }
 
@@ -1370,7 +1424,7 @@ export class ResilientDataStore {
     req.reviewedAt = new Date();
     req.updatedAt = new Date();
 
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return req;
   }
 

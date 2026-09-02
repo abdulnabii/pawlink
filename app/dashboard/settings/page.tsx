@@ -82,13 +82,13 @@ function SettingsContent() {
     const timer = setTimeout(() => controller.abort(), 7000);
 
     Promise.all([
-      fetch("/api/auth/me", { signal: controller.signal })
+      fetch("/api/auth/me", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ error: "UNAUTHORIZED", user: null })),
-      fetch("/api/subscription", { signal: controller.signal })
+      fetch("/api/subscription", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({})),
-      fetch("/api/subscription/request", { signal: controller.signal })
+      fetch("/api/subscription/request", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ requests: [] })),
     ])
@@ -139,6 +139,16 @@ function SettingsContent() {
   useEffect(() => {
     setMounted(true);
     fetchUserData();
+
+    const handleUpdate = () => {
+      fetchUserData();
+    };
+    window.addEventListener("pawlink-subscription-updated", handleUpdate);
+    window.addEventListener("pawlink-auth-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("pawlink-subscription-updated", handleUpdate);
+      window.removeEventListener("pawlink-auth-updated", handleUpdate);
+    };
   }, []);
 
   if (!mounted || loading) {
@@ -275,6 +285,8 @@ function SettingsContent() {
       if (!res.ok) throw new Error(data.error || "Failed to switch to Basic plan");
       setPlanSuccessMessage(data.message || "Switched to Basic ID plan!");
       fetchUserData();
+      window.dispatchEvent(new CustomEvent("pawlink-subscription-updated"));
+      window.dispatchEvent(new CustomEvent("pawlink-notifications-updated"));
     } catch (err: any) {
       setPlanErrorMessage(err.message);
     } finally {
@@ -314,6 +326,8 @@ function SettingsContent() {
       setTransactionId("");
       setPaymentNotes("");
       fetchUserData();
+      window.dispatchEvent(new CustomEvent("pawlink-subscription-updated"));
+      window.dispatchEvent(new CustomEvent("pawlink-notifications-updated"));
     } catch (err: any) {
       setPaymentModalError(err.message || "Failed to submit payment details");
     } finally {
@@ -321,39 +335,36 @@ function SettingsContent() {
     }
   };
 
-  if (loading) {
-    return <div className="p-12 text-center text-slate-400 text-sm">Loading settings &amp; plans...</div>;
-  }
-
-  const isVerified = user?.notificationPreference?.whatsappVerified;
+  const isVerified = Boolean(user?.notificationPreference?.whatsappVerified);
+  const pendingRequest = userRequests.find((r) => r.status === "PENDING");
   const currentPlanId = (subscription?.plan || "FREE").toUpperCase();
-  const latestPendingRequest = userRequests.find((r) => r.status === "PENDING");
+  const currentPlan = plans.find((p) => p.id === currentPlanId) || plans[0];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn pb-16">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Account, Plans &amp; Alerts</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Manage your membership tier, bank payment verification, and WhatsApp scan notifications.
-        </p>
+    <div className="space-y-8 animate-fadeIn max-w-5xl pb-16">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Settings &amp; Emergency Alerts</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Manage your account, phone number for WhatsApp finder alerts, and subscription tier.
+          </p>
+        </div>
       </div>
 
-      {/* PENDING PAYMENT VERIFICATION BANNER */}
-      {latestPendingRequest && (
-        <div className="p-5 bg-amber-50 border-2 border-amber-300 rounded-3xl text-amber-900 flex items-start justify-between gap-4 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-              <Clock className="w-5 h-5 animate-spin" />
+      {/* PENDING VERIFICATION BANNER */}
+      {pendingRequest && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-3xl p-5 flex items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shrink-0 shadow-sm">
+              <Clock className="w-5 h-5 animate-spin text-white/90" />
             </div>
-            <div className="text-xs space-y-1">
-              <p className="font-extrabold text-sm text-amber-950">
-                Payment Verification Pending Approval
-              </p>
-              <p className="text-amber-800">
-                You submitted a payment of <strong>Rs {latestPendingRequest.amountPKR}</strong> for the <strong>{latestPendingRequest.requestedPlan} Plan</strong> (TxID: <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold text-amber-950">{latestPendingRequest.transactionId}</code>).
-              </p>
-              <p className="text-amber-700 text-[11px] pt-1">
-                Admin is reviewing your transaction. You can also send the screenshot to <a href={`mailto:${BANK_PAYMENT_CONFIG.adminEmail}`} className="underline font-bold text-amber-900">{BANK_PAYMENT_CONFIG.adminEmail}</a> for priority approval.
+            <div>
+              <div className="text-sm font-bold text-amber-900">
+                Payment Verification in Progress ({pendingRequest.requestedPlan} Plan)
+              </div>
+              <p className="text-xs text-amber-700 mt-0.5">
+                TxID: <code className="font-mono font-bold">{pendingRequest.transactionId}</code> &bull; Rs {pendingRequest.amountPKR?.toLocaleString()} &bull; Admin will review and activate shortly.
               </p>
             </div>
           </div>
@@ -378,17 +389,24 @@ function SettingsContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-semibold">Active Plan:</span>
-            <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${
-              currentPlanId === "PRO"
-                ? "bg-purple-50 text-purple-700 border-purple-200"
-                : currentPlanId === "PLUS"
-                ? "bg-teal-50 text-teal-700 border-teal-200"
-                : "bg-slate-100 text-slate-700 border-slate-300"
-            }`}>
-              {currentPlanId === "PRO" ? "👑 Pro Household" : currentPlanId === "PLUS" ? "⚡ Plus Recovery" : "🛡️ Basic ID (Free)"}
-            </span>
+          <div className="flex flex-col sm:items-end gap-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 font-semibold">Active Plan:</span>
+              <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${
+                currentPlanId === "PRO"
+                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                  : currentPlanId === "PLUS"
+                  ? "bg-teal-50 text-teal-700 border-teal-200"
+                  : "bg-slate-100 text-slate-700 border-slate-300"
+              }`}>
+                {currentPlanId === "PRO" ? "👑 Pro Household" : currentPlanId === "PLUS" ? "⚡ Plus Recovery" : "🛡️ Basic ID (Free)"}
+              </span>
+            </div>
+            {subscription?.currentPeriodEnd && currentPlanId !== "FREE" && (
+              <span className="text-[11px] text-slate-500 font-medium">
+                Renews / Valid until: <strong className="text-slate-800">{new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</strong>
+              </span>
+            )}
           </div>
         </div>
 

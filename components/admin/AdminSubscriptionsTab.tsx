@@ -59,6 +59,8 @@ export function AdminSubscriptionsTab() {
 
       setActionSuccess("Payment approved and plan activated!");
       fetchSubscriptions();
+      window.dispatchEvent(new CustomEvent("pawlink-subscription-updated"));
+      window.dispatchEvent(new CustomEvent("pawlink-notifications-updated"));
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to approve payment");
     } finally {
@@ -83,6 +85,8 @@ export function AdminSubscriptionsTab() {
 
       setActionSuccess("Payment request rejected.");
       fetchSubscriptions();
+      window.dispatchEvent(new CustomEvent("pawlink-subscription-updated"));
+      window.dispatchEvent(new CustomEvent("pawlink-notifications-updated"));
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to reject payment");
     } finally {

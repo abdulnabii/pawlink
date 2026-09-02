@@ -61,7 +61,7 @@ export function NotificationCenter() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/notifications", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
       setNotifications(data.notifications || []);
@@ -69,10 +69,10 @@ export function NotificationCenter() {
     } catch {}
   }, []);
 
-  // Initial fetch + 30s polling + window event listener
+  // Initial fetch + 15s polling + window event listener
   useEffect(() => {
     fetchNotifications();
-    intervalRef.current = setInterval(fetchNotifications, 30_000);
+    intervalRef.current = setInterval(fetchNotifications, 15_000);
 
     const handleUpdate = () => {
       fetchNotifications();
