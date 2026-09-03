@@ -26,8 +26,10 @@ export default function MessagesInboxPage() {
   const [mounted, setMounted] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchConversations = () => {
-    setLoading(true);
+  const fetchConversations = (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+    }
     setFetchError(null);
 
     const controller = new AbortController();
@@ -37,7 +39,7 @@ export default function MessagesInboxPage() {
       fetch("/api/auth/me", { signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ user: null })),
-      fetch("/api/conversations", { signal: controller.signal })
+      fetch("/api/conversations", { signal: controller.signal, cache: "no-store" })
         .then((res) => res.json())
         .catch(() => ({ conversations: [], error: "Failed to load conversations" })),
     ])
@@ -50,7 +52,9 @@ export default function MessagesInboxPage() {
         }
 
         if (convData?.error && !Array.isArray(convData?.conversations)) {
-          setFetchError(convData.error);
+          if (!isBackground) {
+            setFetchError(convData.error);
+          }
         } else if (convData?.conversations && Array.isArray(convData.conversations)) {
           setConversations(convData.conversations);
           if (!activeConvId && convData.conversations.length > 0) {
@@ -60,20 +64,23 @@ export default function MessagesInboxPage() {
       })
       .catch((err) => {
         clearTimeout(timer);
-        setFetchError(err instanceof Error ? err.message : "Failed to load messages");
+        if (!isBackground) {
+          setFetchError(err instanceof Error ? err.message : "Failed to load messages");
+        }
       })
       .finally(() => {
-        setLoading(false);
+        if (!isBackground) {
+          setLoading(false);
+        }
       });
   };
 
-
   useEffect(() => {
     setMounted(true);
-    fetchConversations();
+    fetchConversations(false);
 
-    const interval = setInterval(fetchConversations, 6000);
-    const handleFocus = () => fetchConversations();
+    const interval = setInterval(() => fetchConversations(true), 6000);
+    const handleFocus = () => fetchConversations(true);
     window.addEventListener("focus", handleFocus);
 
     return () => {
@@ -93,25 +100,43 @@ export default function MessagesInboxPage() {
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim() || !activeConvId) return;
+    const textToSend = replyText.trim();
+    if (!textToSend || !activeConvId) return;
 
     setSending(true);
     try {
+      // Optimistically append reply
+      const optimisticMsg = {
+        id: `opt_${Date.now()}`,
+        conversationId: activeConvId,
+        senderType: "OWNER",
+        content: textToSend,
+        createdAt: new Date().toISOString(),
+      };
+      setActiveConv((prev: any) =>
+        prev ? { ...prev, messages: [...(prev.messages || []), optimisticMsg] } : prev
+      );
+      setReplyText("");
+
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId: activeConvId,
-          content: replyText,
+          content: textToSend,
         }),
       });
 
-      if (res.ok) {
-        setReplyText("");
-        fetchConversations();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        await fetchConversations(true);
+      } else {
+        alert(data.error || "Failed to send reply. Please try again.");
+        await fetchConversations(true);
       }
     } catch {
-      alert("Failed to send message");
+      alert("Failed to send message. Please check your connection.");
+      await fetchConversations(true);
     } finally {
       setSending(false);
     }
@@ -136,7 +161,7 @@ export default function MessagesInboxPage() {
           <h3 className="text-base font-bold text-slate-900">Unable to load messages</h3>
           <p className="text-xs text-slate-500 mt-1 mb-4">{fetchError}</p>
           <button
-            onClick={fetchConversations}
+            onClick={() => fetchConversations(false)}
             className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
           >
             Try Again
@@ -176,7 +201,12 @@ export default function MessagesInboxPage() {
                   </div>
                   <p className="text-[11px] text-teal-700 font-semibold mb-1">Pet: {c.pet?.name || "Protected Pet"}</p>
                   {lastMsg && (
-                    <p className="text-xs text-slate-500 truncate">{lastMsg.content}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      <span className="font-semibold text-slate-700">
+                        {lastMsg.senderType === "OWNER" ? "You: " : `${c.finderName || "Finder"}: `}
+                      </span>
+                      {lastMsg.content}
+                    </p>
                   )}
                 </button>
               );
@@ -224,7 +254,7 @@ export default function MessagesInboxPage() {
                           <p>{msg.content}</p>
                         </div>
                         <span className="text-[10px] text-slate-400 mt-1 px-1">
-                          {isOwner ? "You" : activeConv.finderName || "Finder"} • {formatTime(msg.createdAt)}
+                          {isOwner ? "You (Owner)" : activeConv.finderName || "Finder"} • {formatTime(msg.createdAt)}
                         </span>
                       </div>
                     );

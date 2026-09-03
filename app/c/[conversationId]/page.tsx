@@ -33,42 +33,64 @@ export default function FinderDirectChatPage({
   const [sending, setSending] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const fetchChat = () => {
+  const fetchChat = (isBackground = false) => {
     if (!finderToken) {
-      setError("Missing finder access token");
-      setLoading(false);
+      if (!isBackground) {
+        setError("Missing finder access token");
+        setLoading(false);
+      }
       return;
     }
 
-    fetch(`/api/conversations?finderToken=${finderToken}`)
+    fetch(`/api/conversations?finderToken=${finderToken}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.conversation) {
           setConversation(data.conversation);
-        } else {
+          setError(null);
+        } else if (!isBackground) {
           setError(data.error || "Conversation not found");
         }
-        setLoading(false);
       })
       .catch(() => {
-        setError("Failed to connect to chat servers");
-        setLoading(false);
+        if (!isBackground) {
+          setError("Failed to connect to chat servers");
+        }
+      })
+      .finally(() => {
+        if (!isBackground) {
+          setLoading(false);
+        }
       });
   };
 
   useEffect(() => {
     setMounted(true);
-    fetchChat();
+    fetchChat(false);
 
-    const interval = setInterval(fetchChat, 4000);
+    const interval = setInterval(() => fetchChat(true), 4000);
     return () => clearInterval(interval);
   }, [finderToken]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim() || !conversation) return;
+    const textToSend = replyText.trim();
+    if (!textToSend || !conversation) return;
 
     setSending(true);
+    // Optimistic UI update
+    const optimisticMsg = {
+      id: `opt_${Date.now()}`,
+      conversationId: conversation.id,
+      senderType: "FINDER",
+      content: textToSend,
+      createdAt: new Date().toISOString(),
+    };
+    setConversation((prev: any) =>
+      prev ? { ...prev, messages: [...(prev.messages || []), optimisticMsg] } : prev
+    );
+    setReplyText("");
+
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
@@ -76,16 +98,20 @@ export default function FinderDirectChatPage({
         body: JSON.stringify({
           conversationId: conversation.id,
           finderToken,
-          content: replyText,
+          content: textToSend,
         }),
       });
 
-      if (res.ok) {
-        setReplyText("");
-        fetchChat();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        await fetchChat(true);
+      } else {
+        alert(data.error || "Failed to send message. Please try again.");
+        await fetchChat(true);
       }
     } catch {
-      alert("Failed to send message");
+      alert("Failed to send message. Please check your connection.");
+      await fetchChat(true);
     } finally {
       setSending(false);
     }

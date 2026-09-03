@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CreateMessageInputSchema } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -40,17 +40,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This conversation has been closed." }, { status: 403 });
     }
 
-    let senderType: "FINDER" | "OWNER" = "FINDER";
+    let senderType: "FINDER" | "OWNER";
     const ownerUserId = conversation.pet?.user?.id || conversation.pet?.userId;
+    const isPlatformAdmin = session && (
+      session.role === "ADMIN" ||
+      session.role === "SUPER_ADMIN" ||
+      (session.email && isAdminEmail(session.email))
+    );
+    const isPetOwner = session && (
+      session.id === ownerUserId ||
+      session.id === conversation.pet?.userId
+    );
 
-    if (session && (session.id === ownerUserId || session.id === conversation.pet?.userId)) {
+    // If request supplies valid finderToken, it is guaranteed to be from the FINDER
+    // (even if the user happens to have an active owner login session in the same browser)
+    if (validated.finderToken && validated.finderToken === conversation.finderToken) {
+      senderType = "FINDER";
+    } else if (isPetOwner || isPlatformAdmin) {
       senderType = "OWNER";
     } else {
-      // Validate finderToken
-      if (!validated.finderToken || validated.finderToken !== conversation.finderToken) {
-        return NextResponse.json({ error: "Invalid or expired finder token" }, { status: 401 });
-      }
-      senderType = "FINDER";
+      return NextResponse.json(
+        { error: "Unauthorized: Invalid or missing finder token, or owner login required" },
+        { status: 401 }
+      );
     }
 
     const message = await db.$transaction(async (tx: any) => {
