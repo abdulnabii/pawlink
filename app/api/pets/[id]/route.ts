@@ -4,6 +4,9 @@ import { db } from "@/lib/db";
 import { UpdatePetInputSchema } from "@/lib/validation";
 import { sanitizePrisma } from "@/lib/sanitize";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }

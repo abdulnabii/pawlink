@@ -81,6 +81,10 @@ export default function NewPetPage() {
         throw new Error(data.message || data.error || "Failed to create pet profile");
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("pawlink-pets-updated"));
+      }
+
       router.push(`/dashboard/pets/${data.pet.id}`);
       router.refresh();
     } catch (err: any) {

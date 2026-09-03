@@ -5,6 +5,9 @@ import { RegisterInputSchema } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
   const rateCheck = checkRateLimit(`register:${ip}`, 10, 60 * 1000);
@@ -60,7 +63,6 @@ export async function POST(req: NextRequest) {
         phone: validated.phone || null,
         role: effectiveRole,
         notificationPreference: {
-
           create: {
             whatsappEnabled: true,
             whatsappVerified: false,
@@ -89,6 +91,10 @@ export async function POST(req: NextRequest) {
         currentPeriodEnd: null,
       },
     });
+
+    // 4. Force synchronous cloud sync so the user and subscription exist in Supabase immediately
+    const { resilientStore } = await import("@/lib/store");
+    await resilientStore.syncToCloud(true);
 
     await setSessionCookie(user);
 

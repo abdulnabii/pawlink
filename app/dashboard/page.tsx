@@ -36,16 +36,16 @@ export default function DashboardOverviewPage() {
     const timer = setTimeout(() => controller.abort(), 7000);
 
     Promise.all([
-      fetch("/api/auth/me", { signal: controller.signal })
+      fetch("/api/auth/me", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ error: "UNAUTHORIZED", user: null })),
-      fetch("/api/pets", { signal: controller.signal })
+      fetch("/api/pets", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ error: "Failed to load pets" })),
-      fetch("/api/tags", { signal: controller.signal })
+      fetch("/api/tags", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({ error: "Failed to load tags" })),
-      fetch("/api/subscription", { signal: controller.signal })
+      fetch("/api/subscription", { cache: "no-store", signal: controller.signal })
         .then((res) => res.json())
         .catch(() => ({})),
     ])
@@ -82,10 +82,20 @@ export default function DashboardOverviewPage() {
       });
   };
 
-
   useEffect(() => {
     setMounted(true);
     fetchOverviewData();
+
+    const handleUpdate = () => fetchOverviewData();
+    window.addEventListener("pawlink-pets-updated", handleUpdate);
+    window.addEventListener("pawlink-subscription-updated", handleUpdate);
+    window.addEventListener("focus", handleUpdate);
+
+    return () => {
+      window.removeEventListener("pawlink-pets-updated", handleUpdate);
+      window.removeEventListener("pawlink-subscription-updated", handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
+    };
   }, []);
 
   const getSafeNumber = (val: any): number => {

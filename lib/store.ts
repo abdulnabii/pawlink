@@ -373,24 +373,24 @@ export class ResilientDataStore {
   private syncArrayFromCloud(localArr: any[], cloudArr: any[]) {
     if (!Array.isArray(cloudArr)) return localArr;
     const map = new Map();
-    // Cloud state is the primary persistent store
+    // 1. Cloud state is the primary persistent store
     for (const item of cloudArr) {
       if (item && item.id) map.set(item.id, item);
     }
-    // Only keep local items that are strictly newer or unpersisted
+    // 2. Keep all local items and merge newer local mutations
     for (const item of localArr) {
       if (item && item.id) {
         const cloudItem = map.get(item.id);
         if (!cloudItem) {
-          // If created locally during this session, keep it
-          if (item.createdAt && new Date(item.createdAt).getTime() > this.lastCloudSync) {
-            map.set(item.id, item);
-          }
+          // Brand new local item (user, pet, etc.) -> ALWAYS preserve and sync
+          map.set(item.id, item);
         } else {
           const localTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
           const cloudTime = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
-          if (localTime > cloudTime) {
-            map.set(item.id, item);
+          if (localTime >= cloudTime) {
+            map.set(item.id, { ...cloudItem, ...item });
+          } else {
+            map.set(item.id, cloudItem);
           }
         }
       }
@@ -522,10 +522,19 @@ export class ResilientDataStore {
   // --- USER METHODS ---
   async findUserUnique(args: any) {
     await this.syncFromCloud();
-    if (args.where?.id) return this.users.find((u) => u.id === args.where.id) || null;
-    if (args.where?.email) return this.users.find((u) => u.email?.toLowerCase() === args.where.email.toLowerCase()) || null;
-    if (args.where?.authUserId) return this.users.find((u) => u.authUserId === args.where.authUserId) || null;
-    return null;
+    let user = null;
+    if (args.where?.id) user = this.users.find((u) => u.id === args.where.id) || null;
+    if (!user && args.where?.email) user = this.users.find((u) => u.email?.toLowerCase() === args.where.email.toLowerCase()) || null;
+    if (!user && args.where?.authUserId) user = this.users.find((u) => u.authUserId === args.where.authUserId) || null;
+    
+    // Cache-miss fallback: If user not found in warm container, force fresh fetch from Supabase
+    if (!user) {
+      await this.fetchCloudState();
+      if (args.where?.id) user = this.users.find((u) => u.id === args.where.id) || null;
+      if (!user && args.where?.email) user = this.users.find((u) => u.email?.toLowerCase() === args.where.email.toLowerCase()) || null;
+      if (!user && args.where?.authUserId) user = this.users.find((u) => u.authUserId === args.where.authUserId) || null;
+    }
+    return user;
   }
 
   async findUserFirst(args: any) {
@@ -537,15 +546,22 @@ export class ResilientDataStore {
         if (found) return found;
       }
     }
-    const where = args.where;
-    const user = this.users.find((u) => {
+    let user = this.findUserFromMemory(args.where);
+    if (!user) {
+      await this.fetchCloudState();
+      user = this.findUserFromMemory(args.where);
+    }
+    return user || null;
+  }
+
+  private findUserFromMemory(where: any) {
+    return this.users.find((u) => {
       if (where.id && u.id !== where.id) return false;
       if (where.email && u.email?.toLowerCase() !== where.email.toLowerCase()) return false;
       if (where.authUserId && u.authUserId !== where.authUserId) return false;
       if (where.role && u.role !== where.role) return false;
       return true;
     });
-    return user || null;
   }
 
   async createUser(args: any) {
@@ -562,7 +578,7 @@ export class ResilientDataStore {
       },
     };
     this.users.push(user);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return user;
   }
 
@@ -572,7 +588,7 @@ export class ResilientDataStore {
     if (!user) return null;
     this.applyPrismaData(user, args.data);
     user.updatedAt = new Date();
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return user;
   }
 
@@ -582,6 +598,11 @@ export class ResilientDataStore {
     let result = [...this.pets];
     if (args?.where?.userId) {
       result = result.filter((p) => p.userId === args.where.userId);
+      // Cache-miss check: If 0 pets found for this user, force a fresh fetch from Supabase
+      if (result.length === 0) {
+        await this.fetchCloudState();
+        result = this.pets.filter((p) => p.userId === args.where.userId);
+      }
     }
     return result.map((p) => this.hydratePet(p));
   }

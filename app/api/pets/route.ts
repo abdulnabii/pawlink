@@ -6,6 +6,9 @@ import { sanitizePrisma } from "@/lib/sanitize";
 import { generateTagCode, generateActivationPin } from "@/lib/crypto";
 import { getTagRecoveryUrl } from "@/lib/qr";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const user = await requireAuth();

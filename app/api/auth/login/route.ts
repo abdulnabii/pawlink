@@ -5,6 +5,9 @@ import { LoginInputSchema } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
   // Tightened: 5 attempts per 15 minutes to prevent brute force

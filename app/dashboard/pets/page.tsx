@@ -61,6 +61,17 @@ export default function PetsListPage() {
   useEffect(() => {
     setMounted(true);
     fetchPetsData();
+
+    const handleUpdate = () => fetchPetsData();
+    window.addEventListener("pawlink-pets-updated", handleUpdate);
+    window.addEventListener("pawlink-subscription-updated", handleUpdate);
+    window.addEventListener("focus", handleUpdate);
+
+    return () => {
+      window.removeEventListener("pawlink-pets-updated", handleUpdate);
+      window.removeEventListener("pawlink-subscription-updated", handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
+    };
   }, []);
 
   if (!mounted || loading) {
