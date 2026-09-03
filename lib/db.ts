@@ -635,6 +635,16 @@ function createSelfHealingDb() {
         const storeRes = await resilientStore.updateNotificationJob(args);
         return prismaRes || storeRes;
       },
+      updateMany: async (args: any) => {
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await rawPrisma.notificationJob.updateMany(args);
+          } catch {}
+        }
+        const storeRes = await resilientStore.updateManyNotificationJobs(args);
+        return prismaRes || storeRes;
+      },
     },
     notification: {
       groupBy: async () => [],

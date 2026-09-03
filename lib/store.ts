@@ -1229,8 +1229,24 @@ export class ResilientDataStore {
     const job = this.notificationJobs.find((j) => j.id === args.where?.id);
     if (!job) return null;
     this.applyPrismaData(job, args.data);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return job;
+  }
+
+  async updateManyNotificationJobs(args: any) {
+    await this.syncFromCloud();
+    let count = 0;
+    for (const job of this.notificationJobs) {
+      let matches = true;
+      if (args?.where?.id && job.id !== args.where.id) matches = false;
+      if (args?.where?.status && job.status !== args.where.status) matches = false;
+      if (matches) {
+        this.applyPrismaData(job, args.data);
+        count++;
+      }
+    }
+    await this.syncToCloud(true);
+    return { count };
   }
 
   async findNotifications(args?: any) {
