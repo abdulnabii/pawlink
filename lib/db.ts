@@ -546,12 +546,14 @@ function createSelfHealingDb() {
         return prismaRes || storeRes;
       },
       update: async (args: any) => {
+        let prismaRes = null;
         if (rawPrisma) {
           try {
-            return await rawPrisma.conversation.update(args);
+            prismaRes = await rawPrisma.conversation.update(args);
           } catch {}
         }
-        return { id: args.where?.id, ...args.data };
+        const storeRes = await resilientStore.updateConversation(args);
+        return prismaRes || storeRes || { id: args.where?.id, ...args.data };
       },
     },
     message: {

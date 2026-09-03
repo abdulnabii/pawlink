@@ -114,10 +114,15 @@ export async function POST(req: NextRequest) {
       `LOC_ALERT:${locationEvent.id}`
     );
 
-    // Asynchronously dispatch
-    processNotificationQueue(5).catch((err) =>
-      console.error("[Queue Worker Async Error on Location Event]", err)
-    );
+    // Dispatch notification
+    try {
+      await processNotificationQueue(5);
+    } catch (err) {
+      console.error("[Queue Worker Error on Location Event]", err);
+    }
+
+    const { resilientStore } = await import("@/lib/store");
+    await resilientStore.syncToCloud(true);
 
     return NextResponse.json({
       success: true,

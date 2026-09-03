@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateFinderToken } from "@/lib/crypto";
+import { enqueueNotificationJob, processNotificationQueue } from "@/lib/queue/worker";
 import { z } from "zod";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const StartConversationSchema = z.object({
   tagCode: z.string().min(1),
@@ -123,6 +127,57 @@ export async function POST(req: NextRequest) {
         messages: true,
       },
     });
+
+    // Notify pet owner and dispatch instant in-app / external alerts
+    const ownerUserId = pet.userId;
+    if (ownerUserId) {
+      if (validated.initialMessage) {
+        await db.recoveryEvent.create({
+          data: {
+            petId: pet.id,
+            recoveryCaseId: activeCase?.id || null,
+            type: "MESSAGE_RECEIVED",
+            actorType: "FINDER",
+            title: `💬 New Message from Finder: ${validated.finderName || "Helpful Finder"}`,
+            description: `Finder sent: "${validated.initialMessage.substring(0, 80)}${validated.initialMessage.length > 80 ? "..." : ""}"`,
+            metadata: JSON.stringify({
+              conversationId: conversation.id,
+              finderName: validated.finderName,
+              finderPhone: validated.finderPhone,
+            }),
+          },
+        }).catch(() => {});
+
+        const appUrl =
+          process.env.NEXT_PUBLIC_APP_URL ||
+          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://pawlink-chi.vercel.app");
+        const dashboardUrl = `${appUrl}/dashboard/messages?conv=${conversation.id}`;
+
+        await enqueueNotificationJob(
+          ownerUserId,
+          "MESSAGE_ALERT",
+          {
+            userId: ownerUserId,
+            petId: pet.id,
+            petName: pet.name || "Pet",
+            type: "MESSAGE_ALERT",
+            title: `💬 Finder Message for ${pet.name || "your pet"}`,
+            body: `"${validated.initialMessage.substring(0, 120)}"`,
+            dashboardUrl,
+          },
+          `CONV_ALERT:${conversation.id}`
+        );
+
+        try {
+          await processNotificationQueue(5);
+        } catch (e) {
+          console.error("[Queue Worker Error on New Conversation]", e);
+        }
+      }
+    }
+
+    const { resilientStore } = await import("@/lib/store");
+    await resilientStore.syncToCloud(true);
 
     return NextResponse.json({
       success: true,

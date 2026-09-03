@@ -71,6 +71,15 @@ export default function MessagesInboxPage() {
   useEffect(() => {
     setMounted(true);
     fetchConversations();
+
+    const interval = setInterval(fetchConversations, 6000);
+    const handleFocus = () => fetchConversations();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   useEffect(() => {

@@ -69,19 +69,25 @@ export function NotificationCenter() {
     } catch {}
   }, []);
 
-  // Initial fetch + 15s polling + window event listener
+  // Initial fetch + 8s polling + window focus and event listeners
   useEffect(() => {
     fetchNotifications();
-    intervalRef.current = setInterval(fetchNotifications, 15_000);
+    intervalRef.current = setInterval(fetchNotifications, 8_000);
 
     const handleUpdate = () => {
       fetchNotifications();
     };
+    const handleFocus = () => {
+      fetchNotifications();
+    };
+
     window.addEventListener("pawlink-notifications-updated", handleUpdate);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener("pawlink-notifications-updated", handleUpdate);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [fetchNotifications]);
 

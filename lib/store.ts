@@ -1033,9 +1033,19 @@ export class ResilientDataStore {
     await this.syncFromCloud();
     let result = [...this.conversations];
     if (args?.where?.pet?.userId) {
+      let ownerPets = this.pets.filter((p) => p.userId === args.where.pet.userId);
+      if (ownerPets.length === 0) {
+        await this.fetchCloudState();
+        ownerPets = this.pets.filter((p) => p.userId === args.where.pet.userId);
+      }
+      const ownerPetIds = new Set(ownerPets.map((p) => p.id));
+      result = this.conversations.filter((c) => ownerPetIds.has(c.petId));
+    }
+    if (result.length === 0 && args?.where?.pet?.userId) {
+      await this.fetchCloudState();
       const ownerPets = this.pets.filter((p) => p.userId === args.where.pet.userId);
       const ownerPetIds = new Set(ownerPets.map((p) => p.id));
-      result = result.filter((c) => ownerPetIds.has(c.petId));
+      result = this.conversations.filter((c) => ownerPetIds.has(c.petId));
     }
     return result.map((c) => this.hydrateConversation(c));
   }
@@ -1046,7 +1056,29 @@ export class ResilientDataStore {
     let conv: any = null;
     if (where.id) conv = this.conversations.find((c) => c.id === where.id);
     else if (where.finderToken) conv = this.conversations.find((c) => c.finderToken === where.finderToken);
+    
+    if (!conv) {
+      // CACHE MISS: Fresh load from Supabase
+      await this.fetchCloudState();
+      if (where.id) conv = this.conversations.find((c) => c.id === where.id);
+      else if (where.finderToken) conv = this.conversations.find((c) => c.finderToken === where.finderToken);
+    }
+    
     if (!conv) return null;
+    return this.hydrateConversation(conv);
+  }
+
+  async updateConversation(args: any) {
+    await this.syncFromCloud();
+    let conv = this.conversations.find((c) => c.id === args.where?.id);
+    if (!conv) {
+      await this.fetchCloudState();
+      conv = this.conversations.find((c) => c.id === args.where?.id);
+    }
+    if (!conv) return null;
+    this.applyPrismaData(conv, args.data);
+    conv.updatedAt = new Date();
+    await this.syncToCloud(true);
     return this.hydrateConversation(conv);
   }
 
@@ -1073,7 +1105,7 @@ export class ResilientDataStore {
     }
 
     this.conversations.push(conv);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return this.hydrateConversation(conv);
   }
 
@@ -1085,13 +1117,17 @@ export class ResilientDataStore {
       createdAt: new Date(),
     };
 
-    const conv = this.conversations.find((c) => c.id === args.data.conversationId);
+    let conv = this.conversations.find((c) => c.id === args.data.conversationId);
+    if (!conv) {
+      await this.fetchCloudState();
+      conv = this.conversations.find((c) => c.id === args.data.conversationId);
+    }
     if (conv) {
       if (!conv.messages) conv.messages = [];
       conv.messages.push(msg);
       conv.updatedAt = new Date();
     }
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return msg;
   }
 
@@ -1265,6 +1301,23 @@ export class ResilientDataStore {
         result = result.filter((n) => n.status === args.where.status);
       }
     }
+    if (result.length === 0 && (args?.where?.userId || args?.where?.id)) {
+      await this.fetchCloudState();
+      result = [...this.notifications];
+      if (args?.where?.userId) {
+        result = result.filter((n) => n.userId === args.where.userId);
+      }
+      if (args?.where?.id) {
+        result = result.filter((n) => n.id === args.where.id);
+      }
+      if (args?.where?.status) {
+        if (typeof args.where.status === "object" && "not" in args.where.status) {
+          result = result.filter((n) => n.status !== args.where.status.not);
+        } else {
+          result = result.filter((n) => n.status === args.where.status);
+        }
+      }
+    }
     if (args?.take) {
       result = result.slice(0, args.take);
     }
@@ -1280,7 +1333,7 @@ export class ResilientDataStore {
       createdAt: new Date(),
     };
     this.notifications.unshift(notification);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return notification;
   }
 
@@ -1289,7 +1342,7 @@ export class ResilientDataStore {
     const n = this.notifications.find((x) => x.id === args.where?.id);
     if (!n) return null;
     Object.assign(n, args.data);
-    await this.syncToCloud();
+    await this.syncToCloud(true);
     return n;
   }
 
@@ -1313,7 +1366,7 @@ export class ResilientDataStore {
         count++;
       }
     });
-    if (count > 0) await this.syncToCloud();
+    await this.syncToCloud(true);
     return { count };
   }
 

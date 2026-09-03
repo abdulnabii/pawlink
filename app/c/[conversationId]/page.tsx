@@ -59,6 +59,9 @@ export default function FinderDirectChatPage({
   useEffect(() => {
     setMounted(true);
     fetchChat();
+
+    const interval = setInterval(fetchChat, 4000);
+    return () => clearInterval(interval);
   }, [finderToken]);
 
   const handleSend = async (e: React.FormEvent) => {

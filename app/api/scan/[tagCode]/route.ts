@@ -167,17 +167,19 @@ export async function GET(
             `SCAN_ALERT:${tag.id}:${idempotencyKey}`
           );
 
-          processNotificationQueue(5).catch((err) =>
-            console.error("[Queue Worker Async Trigger Error]", err)
-          );
+          try {
+            await processNotificationQueue(5);
+          } catch (err) {
+            console.error("[Queue Worker Trigger Error]", err);
+          }
         }
       } catch (e) {
         console.error("[Scan Event Background Log Error]", e);
       }
     };
 
-    // Fire-and-forget scan telemetry so finder gets pet data in milliseconds
-    recordBackgroundScan().catch(() => {});
+    // Await scan telemetry and alert dispatch so notifications are guaranteed on serverless
+    await recordBackgroundScan().catch(() => {});
 
     // 4. Return Safe Public DTO instantly
     const publicProfile = toPublicPetResponse(pet, tag);

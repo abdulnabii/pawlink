@@ -5,6 +5,9 @@ import { CreateMessageInputSchema } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueueNotificationJob, processNotificationQueue } from "@/lib/queue/worker";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
   const rateCheck = checkRateLimit(`msg:${ip}`, 20, 60 * 1000);
@@ -116,10 +119,15 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      processNotificationQueue(5).catch((err) =>
-        console.error("[Queue Worker Async Error on Message]", err)
-      );
+      try {
+        await processNotificationQueue(5);
+      } catch (err) {
+        console.error("[Queue Worker Error on Message]", err);
+      }
     }
+
+    const { resilientStore } = await import("@/lib/store");
+    await resilientStore.syncToCloud(true);
 
     return NextResponse.json({ success: true, message }, { status: 201 });
   } catch (err: unknown) {
