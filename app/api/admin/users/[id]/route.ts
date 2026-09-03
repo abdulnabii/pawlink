@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sanitizePrisma } from "@/lib/sanitize";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(
   req: NextRequest,
@@ -58,8 +61,9 @@ export async function PATCH(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (role && role !== targetUser.role && admin.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "FORBIDDEN: Only SUPER_ADMIN can change roles" }, { status: 403 });
+    const isAuthorizedAdmin = admin.role === "SUPER_ADMIN" || admin.role === "ADMIN" || (admin.email && isAdminEmail(admin.email));
+    if (role && role !== targetUser.role && !isAuthorizedAdmin) {
+      return NextResponse.json({ error: "FORBIDDEN: Only administrators can change roles" }, { status: 403 });
     }
 
     const updates: any = {};
@@ -88,6 +92,9 @@ export async function PATCH(
         });
       }
     }
+
+    const { resilientStore } = await import("@/lib/store");
+    await resilientStore.syncToCloud(true);
 
     await db.auditLog.create({
       data: {

@@ -150,7 +150,7 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">All Roles</option>
+            <option value="">Filter by Role: All</option>
             <option value="SUPER_ADMIN">Super Admin</option>
             <option value="ADMIN">Admin</option>
             <option value="SUPPORT">Support</option>
@@ -165,7 +165,7 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
             onChange={(e) => setPlanFilter(e.target.value)}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">All Plans</option>
+            <option value="">Filter by Plan: All</option>
             <option value="FREE">Basic ID (Free)</option>
             <option value="PLUS">Plus Recovery</option>
             <option value="PRO">Pro Household</option>
@@ -263,19 +263,17 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
                         >
                           Inspect
                         </button>
-                        {adminRole === "SUPER_ADMIN" && (
-                          <button
-                            onClick={() => {
-                              setActionUser(u);
-                              setActionType("ROLE");
-                              setNewRole(u.role);
-                              setNewPlan(plan);
-                            }}
-                            className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm"
-                          >
-                            Edit
-                          </button>
-                        )}
+                        <button
+                          onClick={() => {
+                            setActionUser(u);
+                            setActionType("ROLE");
+                            setNewRole(u.role);
+                            setNewPlan(plan);
+                          }}
+                          className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm"
+                        >
+                          Assign Role
+                        </button>
                       </td>
                     </tr>
                   );
@@ -350,14 +348,30 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
                 </div>
               </div>
 
-              {/* Subscriptions */}
-              <div>
-                <h4 className="font-extrabold uppercase text-[10px] text-slate-400 tracking-wider mb-2">
-                  Membership Tier
-                </h4>
-                <div className="p-3 bg-teal-50 border border-teal-100 rounded-2xl text-teal-900 font-bold">
-                  {selectedUser.subscriptions?.[0]?.plan || "FREE"} Plan • Status: ACTIVE
+              {/* Membership Tier & Role Assignment */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-extrabold uppercase text-[10px] text-slate-400 tracking-wider mb-1">
+                    Current Access & Tier
+                  </h4>
+                  <p className="text-xs font-bold text-slate-900">
+                    Role: <span className="text-teal-700 font-extrabold">{selectedUser.role}</span> • Plan: <span className="text-slate-800 font-extrabold">{selectedUser.subscriptions?.[0]?.plan || "FREE"}</span>
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = selectedUser;
+                    setSelectedUser(null);
+                    setActionUser(target);
+                    setActionType("ROLE");
+                    setNewRole(target.role);
+                    setNewPlan(target.subscriptions?.[0]?.plan || "FREE");
+                  }}
+                  className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors shrink-0"
+                >
+                  Assign Role
+                </button>
               </div>
 
               {/* Audit Logs */}
