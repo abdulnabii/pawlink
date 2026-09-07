@@ -55,6 +55,10 @@ model Pet {
   allowInAppChat      Boolean            @default(true)
   hideOwnerPhone      Boolean            @default(true)
   
+  // Vet Mode
+  vetAccessToken    String?            @unique
+  vetTokenExpiresAt DateTime?
+
   // Relations
   photos              PetPhoto[]
   medicalRecords      PetMedicalRecord[]
@@ -432,3 +436,30 @@ model FeatureFlag {
   updatedAt   DateTime @updatedAt
 }
 
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model CommunityScout {
+  id             String   @id @default(cuid())
+  userId         String
+  latitude       Float
+  longitude      Float
+  radiusKm       Float    @default(5)
+  isActive       Boolean  @default(true)
+  alertsReceived Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}

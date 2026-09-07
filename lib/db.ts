@@ -948,6 +948,84 @@ function createSelfHealingDb() {
         return null;
       },
     },
+
+    // ── PushSubscription — pass-through to Prisma directly ──────────────
+    pushSubscription: {
+      upsert: async (args: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.pushSubscription.upsert(args); } catch {}
+        }
+        return { id: "stub", ...args.create };
+      },
+      delete: async (args: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.pushSubscription.delete(args); } catch {}
+        }
+        return null;
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.pushSubscription.findMany(args); } catch {}
+        }
+        return [];
+      },
+    },
+
+    // ── CommunityScout — pass-through to Prisma directly ────────────────
+    communityScout: {
+      findFirst: async (args?: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.communityScout.findFirst(args); } catch {}
+        }
+        return null;
+      },
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.communityScout.findMany(args); } catch {}
+        }
+        return [];
+      },
+      upsert: async (args: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.communityScout.upsert(args); } catch {}
+        }
+        return { id: "stub", ...args.create };
+      },
+      delete: async (args: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.communityScout.delete(args); } catch {}
+        }
+        return null;
+      },
+    },
+
+    // ── FamilyMember — pass-through to Prisma directly ──────────────────
+    familyMember: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.familyMember.findMany(args); } catch {}
+        }
+        return [];
+      },
+      findFirst: async (args?: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.familyMember.findFirst(args); } catch {}
+        }
+        return null;
+      },
+      create: async (args: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.familyMember.create(args); } catch {}
+        }
+        return { id: "stub", ...args.data };
+      },
+      delete: async (args: any) => {
+        if (rawPrisma) {
+          try { return await rawPrisma.familyMember.delete(args); } catch {}
+        }
+        return null;
+      },
+    },
   } as unknown as PrismaClient;
 
 }

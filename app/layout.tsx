@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import PWAInstallBanner from "@/components/ui/PWAInstallBanner";
+import PWAServiceWorker from "@/components/ui/PWAServiceWorker";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -23,6 +25,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "PawLink Team", url: "https://pawlink-chi.vercel.app" }],
   creator: "PawLink",
+  manifest: "/manifest.json",
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -39,7 +42,13 @@ export const metadata: Metadata = {
       "Instant QR collar tag scanning, WhatsApp emergency scan alerts, and zero-auth finder coordination.",
   },
   icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230d9488'><path d='M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4zm-6.5 6A3.5 3.5 0 0 0 2 11.5v1A3.5 3.5 0 0 0 5.5 16 3.5 3.5 0 0 0 9 12.5v-1A3.5 3.5 0 0 0 5.5 8zm13 0A3.5 3.5 0 0 0 15 11.5v1a3.5 3.5 0 0 0 3.5 3.5 3.5 3.5 0 0 0 3.5-3.5v-1A3.5 3.5 0 0 0 18.5 8zM12 11a6 6 0 0 0-6 6c0 2.5 2.5 5 6 5s6-2.5 6-5a6 6 0 0 0-6-6z'/></svg>",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
   },
 };
 
@@ -56,12 +65,20 @@ export default function RootLayout({
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           crossOrigin=""
         />
+        <meta name="theme-color" content="#0d9488" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="PawLink" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body
         suppressHydrationWarning
         className="min-h-screen bg-slate-50 text-slate-900 antialiased selection:bg-teal-500 selection:text-white"
       >
         <ErrorBoundary>{children}</ErrorBoundary>
+        <PWAInstallBanner />
+        <PWAServiceWorker />
       </body>
     </html>
   );

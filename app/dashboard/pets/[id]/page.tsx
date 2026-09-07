@@ -26,6 +26,9 @@ import { LostModeModal } from "@/components/recovery/LostModeModal";
 import { PrintableTagBadge } from "@/components/qr/PrintableTagBadge";
 import { RecoveryTimeline } from "@/components/recovery/RecoveryTimeline";
 import { PetPhotoGallery } from "@/components/pets/PetPhotoGallery";
+import ScanLocationMap from "@/components/dashboard/ScanLocationMap";
+import PetAnalytics from "@/components/dashboard/PetAnalytics";
+import LostPetBulletin from "@/components/dashboard/LostPetBulletin";
 
 
 const RecoveryMap = dynamic(
@@ -63,6 +66,15 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
   // ⚠️ Must live here — above all early returns — to satisfy Rules of Hooks
   const [savingMedical, setSavingMedical] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // New feature states
+  const [showBulletin, setShowBulletin] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "analytics" | "scan-map" | "guardians" | "vet">("overview");
+  const [guardians, setGuardians] = useState<any[]>([]);
+  const [guardianEmail, setGuardianEmail] = useState("");
+  const [addingGuardian, setAddingGuardian] = useState(false);
+  const [vetUrl, setVetUrl] = useState<string | null>(null);
+  const [generatingVetToken, setGeneratingVetToken] = useState(false);
 
   const fetchPet = () => {
     if (!petId) return;
@@ -536,6 +548,199 @@ export default function PetHubPage({ params }: { params?: { id: string } }) {
           </div>
         </div>
       </div>
+
+      {/* FEATURE TABS NAV */}
+      <div className="flex gap-2 flex-wrap">
+        {(["overview", "analytics", "scan-map", "guardians", "vet"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === tab
+                ? "bg-teal-600 text-white shadow"
+                : "bg-white border border-slate-200 text-slate-600 hover:border-teal-400 hover:text-teal-700"
+            }`}
+          >
+            {tab === "overview" && "📋 Overview"}
+            {tab === "analytics" && "📊 Analytics"}
+            {tab === "scan-map" && "🗺️ Scan Map"}
+            {tab === "guardians" && "👨‍👩‍👧 Guardians"}
+            {tab === "vet" && "🏥 Vet Mode"}
+          </button>
+        ))}
+        <a
+          href={`/api/pets/${pet.id}/id-card`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 rounded-2xl text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-teal-400 hover:text-teal-700 transition-all flex items-center gap-1.5"
+        >
+          🖨️ Print ID Card
+        </a>
+        {isLost && (
+          <button
+            onClick={() => setShowBulletin(true)}
+            className="px-4 py-2 rounded-2xl text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-all flex items-center gap-1.5"
+          >
+            📢 Share Lost Bulletin
+          </button>
+        )}
+      </div>
+
+      {/* TAB CONTENT */}
+      {activeTab === "analytics" && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-base font-bold text-slate-900 mb-5 flex items-center gap-2">
+            📊 <span>Pet Analytics — Last 30 Days</span>
+          </h3>
+          <PetAnalytics petId={pet.id} />
+        </div>
+      )}
+
+      {activeTab === "scan-map" && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-base font-bold text-slate-900 mb-5 flex items-center gap-2">
+            🗺️ <span>Scan Location History</span>
+          </h3>
+          <ScanLocationMap petId={pet.id} />
+        </div>
+      )}
+
+      {activeTab === "guardians" && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            👨‍👩‍👧 <span>Family & Guardians</span>
+          </h3>
+          <p className="text-xs text-slate-500">Add family members who will also receive alerts when this tag is scanned.</p>
+
+          {/* Add Guardian Form */}
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={guardianEmail}
+              onChange={(e) => setGuardianEmail(e.target.value)}
+              placeholder="family@example.com"
+              className="flex-1 text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
+            />
+            <button
+              disabled={addingGuardian || !guardianEmail}
+              onClick={async () => {
+                setAddingGuardian(true);
+                try {
+                  const res = await fetch(`/api/pets/${pet.id}/guardians`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: guardianEmail }),
+                  });
+                  const d = await res.json();
+                  if (res.ok) {
+                    setGuardians((prev) => [...prev, d.guardian]);
+                    setGuardianEmail("");
+                  } else { alert(d.error); }
+                } finally { setAddingGuardian(false); }
+              }}
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+            >
+              {addingGuardian ? "Adding…" : "Add"}
+            </button>
+          </div>
+
+          {/* Guardian List - load on tab open */}
+          {activeTab === "guardians" && guardians.length === 0 && (
+            <button
+              className="text-xs text-teal-600 underline"
+              onClick={async () => {
+                const res = await fetch(`/api/pets/${pet.id}/guardians`);
+                const d = await res.json();
+                setGuardians(d.guardians || []);
+              }}
+            >
+              Load guardians
+            </button>
+          )}
+          {guardians.map((g: any) => (
+            <div key={g.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 text-xs">
+              <div>
+                <p className="font-bold text-slate-800">{g.name || g.email}</p>
+                <p className="text-slate-400">{g.email}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${g.inviteAccepted ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                  {g.inviteAccepted ? "Active" : "Pending"}
+                </span>
+                <button
+                  onClick={async () => {
+                    await fetch(`/api/pets/${pet.id}/guardians/${g.id}`, { method: "DELETE" });
+                    setGuardians((prev) => prev.filter((x) => x.id !== g.id));
+                  }}
+                  className="text-red-400 hover:text-red-600 text-xs font-bold"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === "vet" && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            🏥 <span>Vet Mode — Medical QR Code</span>
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Generate a separate QR code that shows <strong>only medical information</strong> to veterinarians and emergency responders — no owner contact info is ever revealed.
+          </p>
+
+          {vetUrl ? (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
+                <p className="text-xs font-bold text-blue-800">✅ Vet Access QR Ready</p>
+                <p className="text-xs text-blue-600 break-all">{vetUrl}</p>
+                <div className="flex gap-2">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(vetUrl)}&color=1d4ed8`}
+                    alt="Vet QR"
+                    className="w-24 h-24 rounded-xl"
+                  />
+                  <div className="text-xs text-blue-700 space-y-1 pt-1">
+                    <p>🔒 Medical data only</p>
+                    <p>📅 Expires in 1 year</p>
+                    <p>No owner info shared</p>
+                  </div>
+                </div>
+                <a href={vetUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">
+                  Preview vet page →
+                </a>
+              </div>
+            </div>
+          ) : (
+            <button
+              disabled={generatingVetToken}
+              onClick={async () => {
+                setGeneratingVetToken(true);
+                try {
+                  const res = await fetch(`/api/pets/${pet.id}/vet-token`, { method: "POST" });
+                  const d = await res.json();
+                  if (res.ok) setVetUrl(d.vetUrl);
+                  else alert(d.error);
+                } finally { setGeneratingVetToken(false); }
+              }}
+              className="px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white text-sm font-bold rounded-2xl transition-colors disabled:opacity-50"
+            >
+              {generatingVetToken ? "Generating…" : "🏥 Generate Vet Access QR"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* LOST PET BULLETIN MODAL */}
+      {showBulletin && (
+        <LostPetBulletin
+          petId={pet.id}
+          petName={pet.name || "Pet"}
+          onClose={() => setShowBulletin(false)}
+        />
+      )}
 
       {/* LOST MODE CONTROLLER MODAL */}
       <LostModeModal
