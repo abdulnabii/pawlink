@@ -115,14 +115,20 @@ export async function POST(req: NextRequest) {
 
     const deliveredReal = supabaseEmailSent || Boolean(emailResult.deliveredRealEmail);
 
+    if (!deliveredReal && supabaseError) {
+      return NextResponse.json(
+        {
+          error: `Email delivery rate limit reached: Supabase free mailer limits projects to 3 emails per hour. To send unlimited OTP emails directly to Gmail, enable Custom SMTP in your Supabase Dashboard or add an EMAIL_API_KEY in Vercel. You can also unlock with your admin password below.`,
+          rateLimited: true,
+        },
+        { status: 429 }
+      );
+    }
+
     const response = NextResponse.json({
       success: true,
       emailDelivered: deliveredReal,
-      message: deliveredReal
-        ? `Security OTP code has been dispatched to ${targetEmail}. Please check your email inbox and enter the 6-digit code.`
-        : (supabaseError
-          ? `Email delivery rate limit reached (${supabaseError}). Please wait 60 seconds before requesting again.`
-          : `Security code has been dispatched to ${targetEmail}. Please check your email inbox and spam folder.`),
+      message: `Security OTP code has been dispatched to ${targetEmail}. Please check your email inbox and enter the 6-digit code.`,
       email: targetEmail,
       maskedEmail,
       expiresAt,

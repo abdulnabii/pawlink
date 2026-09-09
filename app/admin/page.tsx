@@ -78,7 +78,8 @@ function AdminPortalInner() {
     ])
       .then(([meData, statusData]) => {
         if (!meData.user) {
-          setAuthError("You must be logged in with an authorized Administrator account to access this portal.");
+          // Allow direct authentication via Admin 2FA challenge
+          setIs2faVerified(false);
           setAuthLoading(false);
           return;
         }

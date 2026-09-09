@@ -23,7 +23,7 @@ function getJwtSecret(): string {
   return secret;
 }
 
-const COOKIE_NAME = "pawlink_session";
+export const COOKIE_NAME = "pawlink_session";
 
 export interface SessionUser {
   id: string;
