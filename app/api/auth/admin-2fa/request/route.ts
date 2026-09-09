@@ -67,28 +67,38 @@ export async function POST(req: NextRequest) {
     let supabaseEmailSent = false;
     let supabaseError: string | null = null;
 
-    // 1. Dispatch real email via Supabase Auth to user's real email inbox
-    try {
-      const supabase = createServerSupabaseClient();
-      if (supabase) {
-        const { error: sbErr } = await supabase.auth.signInWithOtp({
-          email: targetEmail,
-        });
-        if (!sbErr) {
-          supabaseEmailSent = true;
-          console.log(`[Supabase OTP Email] Real email dispatched to: ${targetEmail}`);
-        } else {
-          supabaseError = sbErr.message;
-          console.warn(`[Supabase OTP Warning]:`, sbErr.message);
-        }
-      }
-    } catch (sbEx: any) {
-      supabaseError = sbEx?.message;
-      console.warn(`[Supabase OTP Exception]:`, sbEx);
+    // 1. Send real email via Resend if configured
+    let emailResult: { success: boolean; deliveredRealEmail: boolean; deliveredTo?: string; error?: string } = {
+      success: false,
+      deliveredRealEmail: false,
+    };
+    const resendApiKey = process.env.EMAIL_API_KEY;
+    if (resendApiKey) {
+      emailResult = await sendAdmin2faEmail(targetEmail, code);
+      console.log(`[Resend OTP Dispatch] Delivered: ${emailResult.deliveredRealEmail}, Recipient: ${emailResult.deliveredTo || targetEmail}`);
     }
 
-    // 2. Also send via Resend if configured
-    const emailResult = await sendAdmin2faEmail(targetEmail, code);
+    // 2. Fallback to Supabase Auth OTP only if Resend is not configured or failed
+    if (!emailResult.deliveredRealEmail) {
+      try {
+        const supabase = createServerSupabaseClient();
+        if (supabase) {
+          const { error: sbErr } = await supabase.auth.signInWithOtp({
+            email: targetEmail,
+          });
+          if (!sbErr) {
+            supabaseEmailSent = true;
+            console.log(`[Supabase OTP Email] Real email dispatched to: ${targetEmail}`);
+          } else {
+            supabaseError = sbErr.message;
+            console.warn(`[Supabase OTP Warning]:`, sbErr.message);
+          }
+        }
+      } catch (sbEx: any) {
+        supabaseError = sbEx?.message;
+        console.warn(`[Supabase OTP Exception]:`, sbEx);
+      }
+    }
 
     // Also record in-app notification for admin
     try {
@@ -113,7 +123,7 @@ export async function POST(req: NextRequest) {
       ? `${local[0]}***${local[local.length - 1]}@${domain}`
       : `${local[0]}***@${domain}`;
 
-    const deliveredReal = supabaseEmailSent || Boolean(emailResult.deliveredRealEmail);
+    const deliveredReal = Boolean(emailResult.deliveredRealEmail) || supabaseEmailSent;
 
     if (!deliveredReal && supabaseError) {
       return NextResponse.json(
@@ -125,11 +135,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const deliveredTo = emailResult.deliveredTo || targetEmail;
     const response = NextResponse.json({
       success: true,
       emailDelivered: deliveredReal,
-      message: `Security OTP code has been dispatched to ${targetEmail}. Please check your email inbox and enter the 6-digit code.`,
+      message: `Security OTP code has been dispatched to ${deliveredTo}. Please check your email inbox and enter the 6-digit code.`,
       email: targetEmail,
+      deliveredTo,
       maskedEmail,
       expiresAt,
     });

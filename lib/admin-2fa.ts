@@ -164,7 +164,7 @@ export async function clearAdmin2faCookie() {
 export async function sendAdmin2faEmail(
   email: string,
   code: string
-): Promise<{ success: boolean; deliveredRealEmail: boolean; error?: string }> {
+): Promise<{ success: boolean; deliveredRealEmail: boolean; deliveredTo?: string; error?: string }> {
   const normalizedEmail = email.trim().toLowerCase();
   const emailProvider = new EmailProvider();
 
@@ -187,6 +187,7 @@ export async function sendAdmin2faEmail(
     return {
       success: result.success,
       deliveredRealEmail: Boolean(result.deliveredRealEmail),
+      deliveredTo: result.deliveredTo,
       error: result.error,
     };
   } catch (err: any) {

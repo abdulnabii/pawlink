@@ -4,7 +4,8 @@ export class EmailProvider implements NotificationProvider {
   channel = "EMAIL" as const;
 
   async send(payload: NotificationPayload): Promise<NotificationSendResult> {
-    const provider = process.env.EMAIL_PROVIDER || "mock";
+    const apiKey = process.env.EMAIL_API_KEY;
+    const provider = process.env.EMAIL_PROVIDER || (apiKey ? "resend" : "mock");
     const recipient = payload.recipientEmail;
 
     if (!recipient) {
@@ -15,7 +16,7 @@ export class EmailProvider implements NotificationProvider {
       };
     }
 
-    if (provider === "mock" && !process.env.EMAIL_API_KEY) {
+    if (provider === "mock" && !apiKey) {
       console.log(`[Email Provider Mock] -> Sent to ${recipient}: ${payload.title} - ${payload.body}`);
       return {
         success: true,
@@ -26,8 +27,7 @@ export class EmailProvider implements NotificationProvider {
     }
 
     // If Resend API key is provided (or provider === "resend"), attempt real delivery
-    if (provider === "resend" || process.env.EMAIL_API_KEY) {
-      const apiKey = process.env.EMAIL_API_KEY;
+    if (provider === "resend" || apiKey) {
       // Resend allows "onboarding@resend.dev" for instant testing without domain verification
       const from = process.env.EMAIL_FROM || "PawLink Security <onboarding@resend.dev>";
 
@@ -41,7 +41,8 @@ export class EmailProvider implements NotificationProvider {
       }
 
       try {
-        const res = await fetch("https://api.resend.com/emails", {
+        let targetRecipient = recipient;
+        let res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -49,7 +50,7 @@ export class EmailProvider implements NotificationProvider {
           },
           body: JSON.stringify({
             from,
-            to: recipient,
+            to: targetRecipient,
             subject: payload.type === "ADMIN_2FA_ALERT"
               ? `Your PawLink Admin Security Code: ${payload.body.match(/\b\d{6}\b/)?.[0] || ""}`
               : `PawLink Alert: ${payload.title}`,
@@ -86,6 +87,7 @@ export class EmailProvider implements NotificationProvider {
         });
 
         const data = await res.json();
+
         if (!res.ok) {
           console.warn(`[Resend Error] Failed to send email to ${recipient}:`, data);
           return {
@@ -101,6 +103,7 @@ export class EmailProvider implements NotificationProvider {
           success: true,
           channel: "EMAIL",
           deliveredRealEmail: true,
+          deliveredTo: recipient,
           providerId: data.id,
         };
       } catch (err) {
