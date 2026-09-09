@@ -22,7 +22,6 @@ export default function LoginPage() {
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [codeSent, setCodeSent] = useState(false);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [admin2faMsg, setAdmin2faMsg] = useState<string | null>(null);
   const [admin2faError, setAdmin2faError] = useState<string | null>(null);
 
@@ -91,13 +90,7 @@ export default function LoginPage() {
 
       setCodeSent(true);
       setCooldown(60);
-      setAdmin2faMsg(data.message || "Security code generated.");
-      
-      const fallback = data.displayCode || data.devCode;
-      if (fallback) {
-        setDevCode(fallback);
-        setCode(fallback); // Auto-fill so user is never blocked
-      }
+      setAdmin2faMsg(data.message || "Security code sent! Please check your email.");
     } catch (err: any) {
       setAdmin2faError(err.message || "Failed to dispatch security code.");
     } finally {
@@ -292,27 +285,6 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-
-              {/* Security Code Banner & Auto-fill */}
-              {devCode && (
-                <div
-                  onClick={() => setCode(devCode)}
-                  className="cursor-pointer p-3 bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-1 text-xs text-teal-300 hover:bg-teal-500/20 transition-all shadow-inner"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-teal-500/20 rounded-md font-mono text-[10px] font-extrabold text-teal-300">
-                        ONE-TIME CODE
-                      </span>
-                      <span className="font-mono text-sm tracking-widest font-black text-white">{devCode}</span>
-                    </div>
-                    <span className="text-[10px] text-teal-400 font-bold underline">Click to fill</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    ℹ️ Email provider is in Sandbox mode. Code is shown here so you can log in immediately.
-                  </p>
-                </div>
-              )}
 
               <form onSubmit={handleVerifyAdminCode} className="space-y-4 pt-1">
                 <div>

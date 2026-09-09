@@ -21,7 +21,6 @@ export function Admin2FaChallenge({
   const [verifying, setVerifying] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [codeSent, setCodeSent] = useState(false);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -58,13 +57,7 @@ export function Admin2FaChallenge({
 
       setCodeSent(true);
       setCooldown(60); // 60-second cooldown
-      setSuccessMsg(data.message || "Security code generated.");
-
-      const fallbackCode = data.displayCode || data.devCode;
-      if (fallbackCode) {
-        setDevCode(fallbackCode);
-        setCode(fallbackCode); // Auto-fill so admin is never locked out
-      }
+      setSuccessMsg(data.message || "Security code sent! Check your email inbox.");
     } catch (err: any) {
       setError(err.message || "An error occurred while requesting the code.");
     } finally {
@@ -156,27 +149,6 @@ export function Admin2FaChallenge({
               </button>
             </div>
           </div>
-
-          {/* Security Code Banner & Auto-fill */}
-          {devCode && (
-            <div
-              onClick={() => setCode(devCode)}
-              className="cursor-pointer p-3.5 bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-1 text-xs text-teal-300 hover:bg-teal-500/20 transition-all shadow-inner"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-teal-500/20 rounded-md font-mono text-[11px] font-extrabold text-teal-300">
-                    ONE-TIME CODE
-                  </span>
-                  <span className="font-mono text-sm tracking-widest font-black text-white">{devCode}</span>
-                </div>
-                <span className="text-[11px] text-teal-400 font-bold underline">Click to auto-fill</span>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                ℹ️ Real email delivery requires an <code>EMAIL_API_KEY</code> (Resend) in Vercel settings. The code is shown here so you can access the admin portal immediately.
-              </p>
-            </div>
-          )}
 
           {/* 6-Digit Code Input Form */}
           <form onSubmit={handleVerify} className="space-y-4 pt-2">

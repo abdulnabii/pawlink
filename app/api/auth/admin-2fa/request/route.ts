@@ -119,16 +119,13 @@ export async function POST(req: NextRequest) {
       success: true,
       emailDelivered: deliveredReal,
       message: deliveredReal
-        ? `Security OTP has been sent directly to ${targetEmail}! Please check your email inbox and spam folder.`
+        ? `Security OTP code has been dispatched to ${targetEmail}. Please check your email inbox and enter the 6-digit code.`
         : (supabaseError
-          ? `Email delivery rate limit reached (${supabaseError}). Use the one-time code shown below:`
-          : `Security code dispatched. Check your email inbox or use the backup code below:`),
+          ? `Email delivery rate limit reached (${supabaseError}). Please wait 60 seconds before requesting again.`
+          : `Security code has been dispatched to ${targetEmail}. Please check your email inbox and spam folder.`),
       email: targetEmail,
       maskedEmail,
       expiresAt,
-      // Provide devCode as backup so the user is never locked out
-      devCode: code,
-      displayCode: code,
     });
 
     // Store challengeToken in HTTP-only cookie for secure, stateless multi-container verification
