@@ -13,7 +13,8 @@ export interface NotificationPayload {
     | "TEST_ALERT"
     | "PLAN_UPGRADED"
     | "PLAN_PAYMENT_REJECTED"
-    | "PAYMENT_VERIFICATION_REQUESTED";
+    | "PAYMENT_VERIFICATION_REQUESTED"
+    | "ADMIN_2FA_ALERT";
   title: string;
   body: string;
   recipientPhone?: string | null;

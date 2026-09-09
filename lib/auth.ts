@@ -168,7 +168,8 @@ export async function requireAuth(): Promise<SessionUser> {
 
 export async function requireAdmin(
   section?: AdminSection,
-  isWriteAction: boolean = false
+  isWriteAction: boolean = false,
+  check2fa: boolean = true
 ): Promise<SessionUser> {
   const user = await requireAuth();
   const userRole = (isAdminEmail(user.email) ? "SUPER_ADMIN" : user.role) as UserRole;
@@ -176,6 +177,15 @@ export async function requireAdmin(
   const isAnyAdmin = ADMIN_ROLES.includes(userRole) || userRole === "ADMIN" || isAdminEmail(user.email);
   if (!isAnyAdmin) {
     throw new Error("FORBIDDEN_ADMIN_REQUIRED");
+  }
+
+  // Enforce 2FA verification for admin operations
+  if (check2fa) {
+    const { hasAdmin2faSession } = await import("./admin-2fa");
+    const is2fa = await hasAdmin2faSession(user.email);
+    if (!is2fa) {
+      throw new Error("FORBIDDEN_ADMIN_2FA_REQUIRED");
+    }
   }
 
   if (section && !hasAdminPermission(userRole, section, isWriteAction)) {

@@ -24,6 +24,8 @@ import { AdminAuditLogsTab } from "@/components/admin/AdminAuditLogsTab";
 import { AdminSettingsTab } from "@/components/admin/AdminSettingsTab";
 import { hasAdminPermission } from "@/lib/permissions";
 
+import { Admin2FaChallenge } from "@/components/admin/Admin2FaChallenge";
+
 function AdminPortalInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,6 +38,7 @@ function AdminPortalInner() {
   const [adminUser, setAdminUser] = useState<any | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [is2faVerified, setIs2faVerified] = useState(false);
 
   // Metrics & Global Counters
   const [metricsData, setMetricsData] = useState<any | null>(null);
@@ -55,7 +58,9 @@ function AdminPortalInner() {
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
-          if (data.error.includes("UNAUTHORIZED") || data.error.includes("FORBIDDEN")) {
+          if (data.error.includes("2FA_REQUIRED")) {
+            setIs2faVerified(false);
+          } else if (data.error.includes("UNAUTHORIZED") || data.error.includes("FORBIDDEN")) {
             setAuthError(data.error);
           }
         } else {
@@ -67,16 +72,18 @@ function AdminPortalInner() {
   };
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.user) {
+    Promise.all([
+      fetch("/api/auth/me").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/auth/admin-2fa/status").then((r) => r.json()).catch(() => ({})),
+    ])
+      .then(([meData, statusData]) => {
+        if (!meData.user) {
           setAuthError("You must be logged in with an authorized Administrator account to access this portal.");
           setAuthLoading(false);
           return;
         }
 
-        const role = data.user.role;
+        const role = meData.user.role;
         const isAdminRole = ["SUPER_ADMIN", "ADMIN", "SUPPORT", "MODERATOR", "ANALYST"].includes(role);
 
         if (!isAdminRole) {
@@ -85,9 +92,15 @@ function AdminPortalInner() {
           return;
         }
 
-        setAdminUser(data.user);
+        setAdminUser(meData.user);
+
+        if (statusData?.is2faVerified) {
+          setIs2faVerified(true);
+          fetchMetrics();
+        } else {
+          setIs2faVerified(false);
+        }
         setAuthLoading(false);
-        fetchMetrics();
       })
       .catch((err) => {
         setAuthError(err instanceof Error ? err.message : "Authentication verification failed");
@@ -102,6 +115,22 @@ function AdminPortalInner() {
         <p className="text-sm font-semibold text-slate-300">Verifying Administrative Credentials...</p>
         <p className="text-xs text-slate-500 mt-1">Connecting to PawLink Operations Console</p>
       </div>
+    );
+  }
+
+  // 2FA Security Challenge Gate
+  if (!is2faVerified) {
+    return (
+      <Admin2FaChallenge
+        initialEmail={adminUser?.email || "abdulnabi.khaskheli@gmail.com"}
+        onVerified={(user) => {
+          if (user) setAdminUser(user);
+          setIs2faVerified(true);
+          setAuthError(null);
+          fetchMetrics();
+        }}
+        onCancel={() => router.push("/dashboard")}
+      />
     );
   }
 
