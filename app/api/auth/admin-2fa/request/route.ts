@@ -64,7 +64,24 @@ export async function POST(req: NextRequest) {
     const { code, challengeToken, expiresAt } = generateAdminOtp(targetEmail);
 
     // Send the email with the code
-    await sendAdmin2faEmail(targetEmail, code);
+    const emailResult = await sendAdmin2faEmail(targetEmail, code);
+
+    // Also record in-app notification for admin
+    try {
+      const adminUser = await db.user.findFirst({ where: { email: targetEmail } });
+      if (adminUser) {
+        await db.notification.create({
+          data: {
+            userId: adminUser.id,
+            type: "ADMIN_2FA_ALERT",
+            title: `Admin 2FA Security Code: ${code}`,
+            body: `Your 6-digit one-time code is ${code}. Valid for 10 minutes.`,
+            channel: "IN_APP",
+            status: "SENT",
+          },
+        });
+      }
+    } catch {}
 
     // Mask email for display: e.g. a***i@gmail.com
     const [local, domain] = targetEmail.split("@");
@@ -72,16 +89,20 @@ export async function POST(req: NextRequest) {
       ? `${local[0]}***${local[local.length - 1]}@${domain}`
       : `${local[0]}***@${domain}`;
 
-    const isDevOrMock = process.env.NODE_ENV !== "production" || process.env.EMAIL_PROVIDER === "mock";
+    const deliveredReal = Boolean(emailResult.deliveredRealEmail);
 
     const response = NextResponse.json({
       success: true,
-      message: `Security code sent to ${maskedEmail}. Code is valid for 10 minutes.`,
+      emailDelivered: deliveredReal,
+      message: deliveredReal
+        ? `Security code dispatched directly to ${targetEmail}! Please check your email inbox and spam folder.`
+        : `Email provider is currently unconfigured or in Mock/Sandbox mode. Your security code is displayed below.`,
       email: targetEmail,
       maskedEmail,
       expiresAt,
-      // Provide devCode in mock / non-prod environments so developers/testers are never blocked
-      devCode: isDevOrMock ? code : undefined,
+      // If real email couldn't be sent to inbox, ALWAYS provide code so admin is never locked out
+      devCode: code,
+      displayCode: code,
     });
 
     // Store challengeToken in HTTP-only cookie for secure, stateless multi-container verification

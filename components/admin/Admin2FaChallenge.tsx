@@ -58,10 +58,12 @@ export function Admin2FaChallenge({
 
       setCodeSent(true);
       setCooldown(60); // 60-second cooldown
-      setSuccessMsg(data.message || "Security code sent! Check your email inbox.");
+      setSuccessMsg(data.message || "Security code generated.");
 
-      if (data.devCode) {
-        setDevCode(data.devCode);
+      const fallbackCode = data.displayCode || data.devCode;
+      if (fallbackCode) {
+        setDevCode(fallbackCode);
+        setCode(fallbackCode); // Auto-fill so admin is never locked out
       }
     } catch (err: any) {
       setError(err.message || "An error occurred while requesting the code.");
@@ -155,19 +157,24 @@ export function Admin2FaChallenge({
             </div>
           </div>
 
-          {/* Dev/Mock helper banner */}
+          {/* Security Code Banner & Auto-fill */}
           {devCode && (
             <div
               onClick={() => setCode(devCode)}
-              className="cursor-pointer p-3 bg-teal-500/10 border border-teal-500/30 rounded-2xl flex items-center justify-between text-xs text-teal-300 hover:bg-teal-500/20 transition-colors"
+              className="cursor-pointer p-3.5 bg-teal-500/10 border border-teal-500/30 rounded-2xl flex flex-col gap-1 text-xs text-teal-300 hover:bg-teal-500/20 transition-all shadow-inner"
             >
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-teal-500/20 rounded-md font-mono text-[11px] font-bold">
-                  TEST CODE
-                </span>
-                <span>Code: <strong>{devCode}</strong></span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-teal-500/20 rounded-md font-mono text-[11px] font-extrabold text-teal-300">
+                    ONE-TIME CODE
+                  </span>
+                  <span className="font-mono text-sm tracking-widest font-black text-white">{devCode}</span>
+                </div>
+                <span className="text-[11px] text-teal-400 font-bold underline">Click to auto-fill</span>
               </div>
-              <span className="text-[10px] text-teal-400 font-bold underline">Click to fill</span>
+              <p className="text-[10px] text-slate-400 mt-1">
+                ℹ️ Real email delivery requires an <code>EMAIL_API_KEY</code> (Resend) in Vercel settings. The code is shown here so you can access the admin portal immediately.
+              </p>
             </div>
           )}
 

@@ -161,7 +161,10 @@ export async function clearAdmin2faCookie() {
 /**
  * Sends the 6-digit OTP code to the administrator's email
  */
-export async function sendAdmin2faEmail(email: string, code: string): Promise<{ success: boolean; error?: string }> {
+export async function sendAdmin2faEmail(
+  email: string,
+  code: string
+): Promise<{ success: boolean; deliveredRealEmail: boolean; error?: string }> {
   const normalizedEmail = email.trim().toLowerCase();
   const emailProvider = new EmailProvider();
 
@@ -181,9 +184,13 @@ export async function sendAdmin2faEmail(email: string, code: string): Promise<{ 
       console.warn(`[Admin 2FA Email] Provider error: ${result.error}`);
     }
 
-    return { success: true };
+    return {
+      success: result.success,
+      deliveredRealEmail: Boolean(result.deliveredRealEmail),
+      error: result.error,
+    };
   } catch (err: any) {
     console.error(`[Admin 2FA Email] Failed to send:`, err);
-    return { success: false, error: err.message };
+    return { success: false, deliveredRealEmail: false, error: err.message };
   }
 }

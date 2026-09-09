@@ -29,6 +29,7 @@ export interface NotificationSendResult {
   success: boolean;
   channel: NotificationChannel;
   providerId?: string;
+  deliveredRealEmail?: boolean;
   error?: string;
 }
 
