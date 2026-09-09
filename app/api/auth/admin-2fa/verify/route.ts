@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { code, password, email: bodyEmail, challengeToken: bodyToken } = body;
+    const { code, email: bodyEmail, challengeToken: bodyToken } = body;
 
     // Resolve target email
     let targetEmail = bodyEmail ? bodyEmail.trim().toLowerCase() : null;
@@ -39,70 +39,46 @@ export async function POST(req: NextRequest) {
       targetEmail = ADMIN_EMAILS[0];
     }
 
+    if (!code || typeof code !== "string" || code.trim().length !== 6) {
+      return NextResponse.json(
+        { error: "Please provide the valid 6-digit security OTP code sent to your email." },
+        { status: 400 }
+      );
+    }
+
     let isVerified = false;
     let verifiedEmail = targetEmail;
 
-    // 1. If password provided, verify admin credentials directly
-    if (password && typeof password === "string") {
-      const { verifyPassword } = await import("@/lib/auth");
-      const user = await db.user.findFirst({ where: { email: targetEmail } });
-      if (user && user.passwordHash) {
-        const validPass = await verifyPassword(password, user.passwordHash);
-        if (validPass && (isAdminEmail(user.email) || ["ADMIN", "SUPER_ADMIN"].includes(user.role))) {
+    // Resolve challenge token from cookie or body
+    const challengeToken =
+      req.cookies.get(ADMIN_2FA_CHALLENGE_COOKIE)?.value || bodyToken;
+
+    // 1. Check code with Supabase Auth (verifies the OTP sent directly to Gmail)
+    try {
+      const supabase = createServerSupabaseClient();
+      if (supabase) {
+        const { data: sbData, error: sbErr } = await supabase.auth.verifyOtp({
+          email: targetEmail,
+          token: code.trim(),
+          type: "email",
+        });
+
+        if (!sbErr && sbData?.user) {
           isVerified = true;
-          verifiedEmail = user.email;
+          verifiedEmail = sbData.user.email || targetEmail;
+          console.log(`[Supabase OTP Verify] Successfully verified for: ${verifiedEmail}`);
         }
       }
-      // Direct emergency fallback for configured super-admin accounts with admin password
-      if (!isVerified && isAdminEmail(targetEmail) && password === "abkhaskhely") {
+    } catch (sbErr) {
+      console.warn(`[Supabase OTP Verify Exception]:`, sbErr);
+    }
+
+    // 2. Fallback: Check code with internal cryptographic challenge token
+    if (!isVerified && challengeToken) {
+      const internalVerif = verifyAdminOtp(challengeToken, targetEmail, code.trim());
+      if (internalVerif.valid) {
         isVerified = true;
-        verifiedEmail = targetEmail;
-      }
-      if (!isVerified) {
-        return NextResponse.json(
-          { error: "Incorrect administrator password." },
-          { status: 401 }
-        );
-      }
-    } else {
-      if (!code || typeof code !== "string" || code.trim().length !== 6) {
-        return NextResponse.json(
-          { error: "Please provide a valid 6-digit security code." },
-          { status: 400 }
-        );
-      }
-
-      // Resolve challenge token from cookie or body
-      const challengeToken =
-        req.cookies.get(ADMIN_2FA_CHALLENGE_COOKIE)?.value || bodyToken;
-
-      // 1. Check code with Supabase Auth (verifies the OTP sent directly to Gmail)
-      try {
-        const supabase = createServerSupabaseClient();
-        if (supabase) {
-          const { data: sbData, error: sbErr } = await supabase.auth.verifyOtp({
-            email: targetEmail,
-            token: code.trim(),
-            type: "email",
-          });
-
-          if (!sbErr && sbData?.user) {
-            isVerified = true;
-            verifiedEmail = sbData.user.email || targetEmail;
-            console.log(`[Supabase OTP Verify] Successfully verified for: ${verifiedEmail}`);
-          }
-        }
-      } catch (sbErr) {
-        console.warn(`[Supabase OTP Verify Exception]:`, sbErr);
-      }
-
-      // 2. Fallback: Check code with internal cryptographic challenge token
-      if (!isVerified && challengeToken) {
-        const internalVerif = verifyAdminOtp(challengeToken, targetEmail, code.trim());
-        if (internalVerif.valid) {
-          isVerified = true;
-          verifiedEmail = internalVerif.email || targetEmail;
-        }
+        verifiedEmail = internalVerif.email || targetEmail;
       }
     }
 

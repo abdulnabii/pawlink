@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     if (!deliveredReal && supabaseError) {
       return NextResponse.json(
         {
-          error: `Email delivery rate limit reached: Supabase free mailer limits projects to 3 emails per hour. To send unlimited OTP emails directly to Gmail, enable Custom SMTP in your Supabase Dashboard or add an EMAIL_API_KEY in Vercel. You can also unlock with your admin password below.`,
+          error: `Email delivery rate limit reached: Supabase free mailer limits projects to 3 emails per hour. Please wait a few minutes or verify your custom email provider.`,
           rateLimited: true,
         },
         { status: 429 }

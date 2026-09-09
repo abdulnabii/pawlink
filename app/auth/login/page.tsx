@@ -15,16 +15,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Admin 2FA State
-  const [adminAuthMode, setAdminAuthMode] = useState<"otp" | "password">("otp");
+  // Admin 2FA State (OTP only)
   const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
   const [code, setCode] = useState("");
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [codeSent, setCodeSent] = useState(false);
-  const [adminRateLimited, setAdminRateLimited] = useState(false);
   const [admin2faMsg, setAdmin2faMsg] = useState<string | null>(null);
   const [admin2faError, setAdmin2faError] = useState<string | null>(null);
 
@@ -78,7 +75,6 @@ export default function LoginPage() {
     setSendingCode(true);
     setAdmin2faError(null);
     setAdmin2faMsg(null);
-    setAdminRateLimited(false);
 
     try {
       const res = await fetch("/api/auth/admin-2fa/request", {
@@ -89,15 +85,12 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 429 || data.rateLimited) {
-          setAdminRateLimited(true);
-        }
         throw new Error(data.error || "Failed to send security code.");
       }
 
       setCodeSent(true);
       setCooldown(60);
-      setAdmin2faMsg(data.message || "Security code sent! Please check your email.");
+      setAdmin2faMsg(data.message || "Security code dispatched to your email! Please check your inbox.");
     } catch (err: any) {
       setAdmin2faError(err.message || "Failed to dispatch security code.");
     } finally {
@@ -109,33 +102,19 @@ export default function LoginPage() {
     e.preventDefault();
     const target = adminEmail.trim() || email.trim();
 
-    if (adminAuthMode === "otp") {
-      if (!code || code.trim().length !== 6) {
-        setAdmin2faError("Please enter the complete 6-digit code.");
-        return;
-      }
-    } else {
-      if (!adminPassword) {
-        setAdmin2faError("Please enter your administrator password.");
-        return;
-      }
+    if (!code || code.trim().length !== 6) {
+      setAdmin2faError("Please enter the complete 6-digit code received on your email.");
+      return;
     }
 
     setVerifyingCode(true);
     setAdmin2faError(null);
 
     try {
-      const payload: any = { email: target };
-      if (adminAuthMode === "otp") {
-        payload.code = code.trim();
-      } else {
-        payload.password = adminPassword;
-      }
-
       const res = await fetch("/api/auth/admin-2fa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ email: target, code: code.trim() }),
       });
 
       const data = await res.json();
@@ -274,75 +253,12 @@ export default function LoginPage() {
           {/* ADMIN 2FA LOGIN FORM */}
           {activeMode === "admin2fa" && (
             <div className="space-y-4">
-              {/* Mode Switcher */}
-              <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAdminAuthMode("otp");
-                    setAdmin2faError(null);
-                  }}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    adminAuthMode === "otp"
-                      ? "bg-teal-500 text-slate-950 shadow"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  <Mail className="w-3 h-3" />
-                  <span>Email Code</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAdminAuthMode("password");
-                    setAdmin2faError(null);
-                  }}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    adminAuthMode === "password"
-                      ? "bg-teal-500 text-slate-950 shadow"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  <Key className="w-3 h-3" />
-                  <span>Admin Password</span>
-                </button>
-              </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                   Admin Email Address
                 </label>
-                {adminAuthMode === "otp" ? (
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                      <input
-                        type="email"
-                        required
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        placeholder="admin@pawlink.pet"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleGetAdminCode}
-                      disabled={sendingCode || cooldown > 0 || !adminEmail}
-                      className="px-3.5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-slate-950 text-xs font-black rounded-xl transition-all flex items-center gap-1.5 shrink-0"
-                    >
-                      {sendingCode ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <KeyRound className="w-3.5 h-3.5" />
-                      )}
-                      <span>
-                        {cooldown > 0 ? `${cooldown}s` : codeSent ? "Resend" : "Get Code"}
-                      </span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                     <input
                       type="email"
@@ -353,71 +269,46 @@ export default function LoginPage() {
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
-                )}
-              </div>
-
-              {/* Rate Limit Notice Banner */}
-              {adminRateLimited && adminAuthMode === "otp" && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 space-y-1.5">
-                  <p className="font-semibold">Supabase free email limit reached (3/hour).</p>
-                  <p className="text-amber-400/80 text-[11px]">
-                    You can switch to Admin Password to sign in immediately without waiting.
-                  </p>
                   <button
                     type="button"
-                    onClick={() => {
-                      setAdminAuthMode("password");
-                      setAdmin2faError(null);
-                    }}
-                    className="w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                    onClick={handleGetAdminCode}
+                    disabled={sendingCode || cooldown > 0 || !adminEmail}
+                    className="px-3.5 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-slate-950 text-xs font-black rounded-xl transition-all flex items-center gap-1.5 shrink-0"
                   >
-                    <Key className="w-3 h-3" />
-                    <span>Switch to Admin Password</span>
+                    {sendingCode ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <KeyRound className="w-3.5 h-3.5" />
+                    )}
+                    <span>
+                      {cooldown > 0 ? `${cooldown}s` : codeSent ? "Resend" : "Get Code"}
+                    </span>
                   </button>
                 </div>
-              )}
+              </div>
 
               <form onSubmit={handleVerifyAdminCode} className="space-y-4 pt-1">
-                {adminAuthMode === "otp" ? (
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                        6-Digit Security Code
-                      </label>
-                      {codeSent && (
-                        <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Code Sent
-                        </span>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="• • • • • •"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-3 text-center font-mono text-xl font-black tracking-[0.4em] text-teal-400 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                      Admin Password
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      6-Digit Security OTP Code
                     </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                      <input
-                        type="password"
-                        required
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      />
-                    </div>
+                    {codeSent && (
+                      <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Code Sent
+                      </span>
+                    )}
                   </div>
-                )}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="• • • • • •"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-3 text-center font-mono text-xl font-black tracking-[0.4em] text-teal-400 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
 
                 {admin2faError && (
                   <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 flex items-start gap-2">
@@ -435,26 +326,18 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={
-                    verifyingCode ||
-                    (adminAuthMode === "otp" && code.length !== 6) ||
-                    (adminAuthMode === "password" && !adminPassword)
-                  }
+                  disabled={verifyingCode || code.length !== 6}
                   className="w-full py-3 px-4 rounded-xl bg-teal-500 hover:bg-teal-600 text-slate-950 font-black text-sm shadow-md shadow-teal-500/20 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
                 >
                   {verifyingCode ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Verifying Credentials...</span>
+                      <span>Verifying OTP Code...</span>
                     </>
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      <span>
-                        {adminAuthMode === "otp"
-                          ? "Sign In via Admin 2FA"
-                          : "Unlock with Admin Password"}
-                      </span>
+                      <span>Sign In via 6-Digit OTP</span>
                     </>
                   )}
                 </button>
