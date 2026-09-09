@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isAdminEmail } from "@/lib/auth";
 import { resilientStore } from "@/lib/store";
 import { db } from "@/lib/db";
 import { sanitizePrisma } from "@/lib/sanitize";
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     // 2. Notify all Admin accounts in-app with valid admin userId
     const allUsers = await resilientStore.getAllUsersForAdmin();
     const adminUsers = allUsers.filter(
-      (u: any) => u.role === "ADMIN" || u.role === "SUPER_ADMIN" || u.email === "abdulnabi.khaskheli@gmail.com"
+      (u: any) => u.role === "ADMIN" || u.role === "SUPER_ADMIN" || isAdminEmail(u.email)
     );
 
     for (const admin of adminUsers) {

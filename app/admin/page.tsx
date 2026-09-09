@@ -122,7 +122,7 @@ function AdminPortalInner() {
   if (!is2faVerified) {
     return (
       <Admin2FaChallenge
-        initialEmail={adminUser?.email || "abdulnabi.khaskheli@gmail.com"}
+        initialEmail={adminUser?.email || "abdulnabi.khaskhely@gmail.com"}
         onVerified={(user) => {
           if (user) setAdminUser(user);
           setIs2faVerified(true);

@@ -62,11 +62,43 @@ export class ResilientDataStore {
       },
       {
         id: adminId,
+        email: "abdulnabi.khaskhely@gmail.com",
+        passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
+        name: "Abdul Nabi Khaskhely",
+        phone: "+923001234567",
+        role: "SUPER_ADMIN",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        notificationPreference: {
+          whatsappEnabled: true,
+          whatsappVerified: true,
+          emailEnabled: true,
+          notificationPhone: "+923001234567",
+        },
+      },
+      {
+        id: "usr_admin_002",
+        email: "khaskheli.abdulnabi110@gmail.com",
+        passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
+        name: "Abdul Nabi",
+        phone: "+923001234567",
+        role: "SUPER_ADMIN",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        notificationPreference: {
+          whatsappEnabled: true,
+          whatsappVerified: true,
+          emailEnabled: true,
+          notificationPhone: "+923001234567",
+        },
+      },
+      {
+        id: "usr_admin_003",
         email: "abdulnabi.khaskheli@gmail.com",
         passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
         name: "Abdul Nabi Khaskheli",
         phone: "+923001234567",
-        role: "ADMIN",
+        role: "SUPER_ADMIN",
         createdAt: new Date(),
         updatedAt: new Date(),
         notificationPreference: {

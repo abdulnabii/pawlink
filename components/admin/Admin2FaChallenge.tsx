@@ -11,7 +11,7 @@ interface Admin2FaChallengeProps {
 }
 
 export function Admin2FaChallenge({
-  initialEmail = "abdulnabi.khaskheli@gmail.com",
+  initialEmail = "abdulnabi.khaskhely@gmail.com",
   onVerified,
   onCancel,
 }: Admin2FaChallengeProps) {

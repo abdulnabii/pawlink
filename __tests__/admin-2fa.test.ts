@@ -3,7 +3,8 @@ import { generateAdminOtp, verifyAdminOtp, signAdmin2faSession } from "../lib/ad
 import jwt from "jsonwebtoken";
 
 describe("Admin 2FA Security Suite", () => {
-  const testEmail = "abdulnabi.khaskheli@gmail.com";
+  const testEmail = "abdulnabi.khaskhely@gmail.com";
+  const secondAdminEmail = "khaskheli.abdulnabi110@gmail.com";
 
   it("should generate a 6-digit numeric OTP and valid challenge token", () => {
     const { code, challengeToken, expiresAt } = generateAdminOtp(testEmail);
@@ -20,6 +21,14 @@ describe("Admin 2FA Security Suite", () => {
 
     expect(result.valid).toBe(true);
     expect(result.email).toBe(testEmail);
+  });
+
+  it("should verify OTP for secondary admin email address", () => {
+    const { code, challengeToken } = generateAdminOtp(secondAdminEmail);
+    const result = verifyAdminOtp(challengeToken, secondAdminEmail, code);
+
+    expect(result.valid).toBe(true);
+    expect(result.email).toBe(secondAdminEmail);
   });
 
   it("should reject an incorrect 6-digit code", () => {

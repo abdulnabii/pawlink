@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid setup token" }, { status: 403 });
   }
 
-  const email = "abdulnabi.khaskheli@gmail.com";
+  const email = req.nextUrl.searchParams.get("email") || "abdulnabi.khaskhely@gmail.com";
   const newPassword = req.nextUrl.searchParams.get("pass") || "PawLink@Admin2026!";
 
   try {

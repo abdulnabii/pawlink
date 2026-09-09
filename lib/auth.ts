@@ -48,6 +48,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export const ADMIN_EMAILS = [
+  "abdulnabi.khaskhely@gmail.com",
+  "khaskheli.abdulnabi110@gmail.com",
   "abdulnabi.khaskheli@gmail.com",
   ...(process.env.ADMIN_EMAIL ? [process.env.ADMIN_EMAIL.toLowerCase()] : []),
 ];

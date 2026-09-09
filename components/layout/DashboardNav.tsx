@@ -97,7 +97,8 @@ export function DashboardNav() {
     { name: "Settings & Alerts", href: "/dashboard/settings", icon: Settings },
   ];
 
-  if (user?.role === "ADMIN" || user?.email?.toLowerCase() === "abdulnabi.khaskheli@gmail.com") {
+  const adminEmails = ["abdulnabi.khaskhely@gmail.com", "khaskheli.abdulnabi110@gmail.com", "abdulnabi.khaskheli@gmail.com"];
+  if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || adminEmails.includes(user?.email?.toLowerCase() || "")) {
     navItems.push({ name: "Admin Portal", href: "/admin", icon: ShieldAlert });
   }
 
