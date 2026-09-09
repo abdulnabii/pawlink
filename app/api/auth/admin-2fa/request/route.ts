@@ -3,6 +3,7 @@ import { getSession, isAdminEmail, ADMIN_EMAILS } from "@/lib/auth";
 import { generateAdminOtp, ADMIN_2FA_CHALLENGE_COOKIE, sendAdmin2faEmail } from "@/lib/admin-2fa";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -63,7 +64,30 @@ export async function POST(req: NextRequest) {
     // Generate cryptographic OTP and challenge token
     const { code, challengeToken, expiresAt } = generateAdminOtp(targetEmail);
 
-    // Send the email with the code
+    let supabaseEmailSent = false;
+    let supabaseError: string | null = null;
+
+    // 1. Dispatch real email via Supabase Auth to user's real email inbox
+    try {
+      const supabase = createServerSupabaseClient();
+      if (supabase) {
+        const { error: sbErr } = await supabase.auth.signInWithOtp({
+          email: targetEmail,
+        });
+        if (!sbErr) {
+          supabaseEmailSent = true;
+          console.log(`[Supabase OTP Email] Real email dispatched to: ${targetEmail}`);
+        } else {
+          supabaseError = sbErr.message;
+          console.warn(`[Supabase OTP Warning]:`, sbErr.message);
+        }
+      }
+    } catch (sbEx: any) {
+      supabaseError = sbEx?.message;
+      console.warn(`[Supabase OTP Exception]:`, sbEx);
+    }
+
+    // 2. Also send via Resend if configured
     const emailResult = await sendAdmin2faEmail(targetEmail, code);
 
     // Also record in-app notification for admin
@@ -89,18 +113,20 @@ export async function POST(req: NextRequest) {
       ? `${local[0]}***${local[local.length - 1]}@${domain}`
       : `${local[0]}***@${domain}`;
 
-    const deliveredReal = Boolean(emailResult.deliveredRealEmail);
+    const deliveredReal = supabaseEmailSent || Boolean(emailResult.deliveredRealEmail);
 
     const response = NextResponse.json({
       success: true,
       emailDelivered: deliveredReal,
       message: deliveredReal
-        ? `Security code dispatched directly to ${targetEmail}! Please check your email inbox and spam folder.`
-        : `Email provider is currently unconfigured or in Mock/Sandbox mode. Your security code is displayed below.`,
+        ? `Security OTP has been sent directly to ${targetEmail}! Please check your email inbox and spam folder.`
+        : (supabaseError
+          ? `Email delivery rate limit reached (${supabaseError}). Use the one-time code shown below:`
+          : `Security code dispatched. Check your email inbox or use the backup code below:`),
       email: targetEmail,
       maskedEmail,
       expiresAt,
-      // If real email couldn't be sent to inbox, ALWAYS provide code so admin is never locked out
+      // Provide devCode as backup so the user is never locked out
       devCode: code,
       displayCode: code,
     });

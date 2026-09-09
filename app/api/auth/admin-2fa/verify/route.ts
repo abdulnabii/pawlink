@@ -8,6 +8,7 @@ import {
 import { getSession, isAdminEmail, setSessionCookie, ADMIN_EMAILS } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -56,16 +57,44 @@ export async function POST(req: NextRequest) {
       targetEmail = ADMIN_EMAILS[0];
     }
 
-    // Verify OTP
-    const verification = verifyAdminOtp(challengeToken, targetEmail, code.trim());
-    if (!verification.valid) {
+    let isVerified = false;
+    let verifiedEmail = targetEmail;
+
+    // 1. Check code with Supabase Auth (verifies the OTP sent directly to Gmail)
+    try {
+      const supabase = createServerSupabaseClient();
+      if (supabase) {
+        const { data: sbData, error: sbErr } = await supabase.auth.verifyOtp({
+          email: targetEmail,
+          token: code.trim(),
+          type: "email",
+        });
+
+        if (!sbErr && sbData?.user) {
+          isVerified = true;
+          verifiedEmail = sbData.user.email || targetEmail;
+          console.log(`[Supabase OTP Verify] Successfully verified for: ${verifiedEmail}`);
+        }
+      }
+    } catch (sbErr) {
+      console.warn(`[Supabase OTP Verify Exception]:`, sbErr);
+    }
+
+    // 2. Fallback: Check code with internal cryptographic challenge token
+    if (!isVerified && challengeToken) {
+      const internalVerif = verifyAdminOtp(challengeToken, targetEmail, code.trim());
+      if (internalVerif.valid) {
+        isVerified = true;
+        verifiedEmail = internalVerif.email || targetEmail;
+      }
+    }
+
+    if (!isVerified) {
       return NextResponse.json(
-        { error: verification.error || "Invalid security code." },
+        { error: "Invalid or expired security code. Please check the code in your email and try again." },
         { status: 401 }
       );
     }
-
-    const verifiedEmail = verification.email || targetEmail;
 
     // Check admin rights
     const isAdmin = isAdminEmail(verifiedEmail);
