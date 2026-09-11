@@ -67,15 +67,20 @@ export async function POST(req: NextRequest) {
     let supabaseEmailSent = false;
     let supabaseError: string | null = null;
 
-    // 1. Send real email via Resend if configured
+    // 1. Send direct email (via Brevo SMTP, Brevo API, or Resend)
     let emailResult: { success: boolean; deliveredRealEmail: boolean; deliveredTo?: string; error?: string } = {
       success: false,
       deliveredRealEmail: false,
     };
-    const resendApiKey = process.env.EMAIL_API_KEY;
-    if (resendApiKey) {
+    const hasDirectEmail = Boolean(
+      process.env.BREVO_SMTP_PASS ||
+      process.env.BREVO_SMTP_HOST ||
+      process.env.BREVO_API_KEY ||
+      process.env.EMAIL_API_KEY
+    );
+    if (hasDirectEmail) {
       emailResult = await sendAdmin2faEmail(targetEmail, code);
-      console.log(`[Resend OTP Dispatch] Delivered: ${emailResult.deliveredRealEmail}, Recipient: ${emailResult.deliveredTo || targetEmail}`);
+      console.log(`[Direct OTP Dispatch] Delivered: ${emailResult.deliveredRealEmail}, Recipient: ${emailResult.deliveredTo || targetEmail}`);
     }
 
     // 2. Fallback to Supabase Auth OTP only if Resend is not configured or failed
