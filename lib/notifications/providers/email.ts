@@ -38,7 +38,13 @@ export class EmailProvider implements NotificationProvider {
     const smtpUser = process.env.BREVO_SMTP_USER;
     const smtpPass = process.env.BREVO_SMTP_PASS;
     const smtpPort = parseInt(process.env.BREVO_SMTP_PORT || "587", 10);
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || "abdulnabi.khaskhely@gmail.com";
+    // Brevo requires the sender email to be an active verified sender.
+    // nabi28309@gmail.com is the verified account email in Brevo.
+    const senderEmail =
+      process.env.BREVO_SENDER_EMAIL &&
+      !process.env.BREVO_SENDER_EMAIL.includes("abdulnabi.khaskhely")
+        ? process.env.BREVO_SENDER_EMAIL
+        : "nabi28309@gmail.com";
 
     if (smtpHost && smtpUser && smtpPass) {
       try {
@@ -106,7 +112,11 @@ export class EmailProvider implements NotificationProvider {
       }
 
       try {
-        const senderEmail = process.env.BREVO_SENDER_EMAIL || "abdulnabi.khaskhely@gmail.com";
+        const senderEmail =
+          process.env.BREVO_SENDER_EMAIL &&
+          !process.env.BREVO_SENDER_EMAIL.includes("abdulnabi.khaskhely")
+            ? process.env.BREVO_SENDER_EMAIL
+            : "nabi28309@gmail.com";
         const res = await fetch("https://api.brevo.com/v3/smtp/email", {
           method: "POST",
           headers: {
