@@ -1,5 +1,21 @@
 import { NotificationPayload, NotificationProvider, NotificationSendResult } from "../types";
 
+function buildAdminOtpHtml(code: string): string {
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 32px 24px; max-width: 500px; margin: auto; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff; text-align: center;">
+      <div style="font-size: 40px; margin-bottom: 12px;">🐾</div>
+      <h2 style="color: #0f172a; margin: 0 0 8px; font-size: 22px; font-weight: 800;">Admin Security Code</h2>
+      <p style="font-size: 14px; color: #64748b; margin: 0 0 24px;">Enter this 6-digit code to unlock the PawLink admin console:</p>
+      <div style="background: #f8fafc; border: 2px dashed #0d9488; border-radius: 16px; padding: 20px; margin: 0 0 24px;">
+        <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 40px; font-weight: 900; letter-spacing: 12px; color: #0f766e;">
+          ${code}
+        </span>
+      </div>
+      <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">Valid for 10 minutes. Do not share this code with anyone.</p>
+    </div>
+  `;
+}
+
 export class EmailProvider implements NotificationProvider {
   channel = "EMAIL" as const;
 
@@ -15,6 +31,56 @@ export class EmailProvider implements NotificationProvider {
         channel: "EMAIL",
         error: "Missing recipient email address",
       };
+    }
+
+    // 0. SMTP via nodemailer (Brevo SMTP — no IP restriction, most reliable)
+    const smtpHost = process.env.BREVO_SMTP_HOST;
+    const smtpUser = process.env.BREVO_SMTP_USER;
+    const smtpPass = process.env.BREVO_SMTP_PASS;
+    const smtpPort = parseInt(process.env.BREVO_SMTP_PORT || "587", 10);
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || "abdulnabi.khaskhely@gmail.com";
+
+    if (smtpHost && smtpUser && smtpPass) {
+      try {
+        const nodemailer = await import("nodemailer");
+        const transporter = nodemailer.default.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: false,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        });
+
+        const extractedCode = payload.body.match(/\b\d{6}\b/)?.[0];
+        const htmlContent = payload.type === "ADMIN_2FA_ALERT" && extractedCode
+          ? buildAdminOtpHtml(extractedCode)
+          : `<div style="font-family: sans-serif; padding: 24px;"><h3>${payload.title}</h3><p>${payload.body}</p></div>`;
+
+        const subject = payload.type === "ADMIN_2FA_ALERT" && extractedCode
+          ? `Your PawLink Admin Code: ${extractedCode}`
+          : `PawLink: ${payload.title}`;
+
+        const info = await transporter.sendMail({
+          from: `"PawLink Security" <${senderEmail}>`,
+          to: recipient,
+          subject,
+          html: htmlContent,
+        });
+
+        console.log(`[SMTP Success] Email delivered to ${recipient}, messageId: ${info.messageId}`);
+        return {
+          success: true,
+          channel: "EMAIL",
+          deliveredRealEmail: true,
+          deliveredTo: recipient,
+          providerId: info.messageId,
+        };
+      } catch (err: any) {
+        console.error(`[SMTP Error] Failed to send via Brevo SMTP:`, err?.message);
+        // Fall through to next provider
+      }
     }
 
     if (activeProvider === "mock" && !apiKey && !process.env.BREVO_API_KEY) {
