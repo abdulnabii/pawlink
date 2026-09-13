@@ -463,3 +463,45 @@ model CommunityScout {
   @@index([userId])
   @@index([isActive])
 }
+
+// =========================================================================
+// Preserved Tables from abdul-portfolio (Protected from deletion/data loss)
+// =========================================================================
+
+model contact_submissions {
+  id         String    @id
+  name       String?
+  email      String?
+  company    String?
+  subject    String?
+  message    String?
+  created_at DateTime?
+}
+
+model inbox {
+  id        String    @id
+  type      String?
+  timestamp DateTime?
+  read      Boolean?
+  archived  Boolean?
+  payload   Json?
+}
+
+model projects {
+  id            String    @id
+  title         String?
+  description   String?
+  appreciations Int?
+  image_url     String?
+  link          String?
+  tags          String[]
+  created_at    DateTime?
+  updated_at    DateTime?
+}
+
+model site_settings {
+  key        String    @id
+  value      String?
+  updated_at DateTime?
+}
+

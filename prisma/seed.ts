@@ -65,7 +65,38 @@ async function main() {
     },
   });
 
-  console.log(`✓ Created Owner (${owner.email}) & Admin (${admin.email})`);
+  // 3b. Create SuperAdmin Users
+  const superAdmin1 = await prisma.user.create({
+    data: {
+      name: "Abdul Nabi",
+      email: "abdulnabi.khaskhely@gmail.com",
+      passwordHash,
+      role: "SUPER_ADMIN",
+      notificationPreference: {
+        create: {
+          whatsappEnabled: true,
+          emailEnabled: true,
+        },
+      },
+    },
+  });
+
+  const superAdmin2 = await prisma.user.create({
+    data: {
+      name: "Abdul Nabi (Backup)",
+      email: "khaskheli.abdulnabi110@gmail.com",
+      passwordHash,
+      role: "SUPER_ADMIN",
+      notificationPreference: {
+        create: {
+          whatsappEnabled: true,
+          emailEnabled: true,
+        },
+      },
+    },
+  });
+
+  console.log(`✓ Created Owner (${owner.email}), Admin (${admin.email}), & SuperAdmins (${superAdmin1.email}, ${superAdmin2.email})`);
 
   // 4. Create Pet 1: Max (Lost Mode Active with Scan & Location History)
   const max = await prisma.pet.create({
