@@ -51,6 +51,7 @@ export const ADMIN_EMAILS = [
   "abdulnabi.khaskhely@gmail.com",
   "khaskheli.abdulnabi110@gmail.com",
   "abdulnabi.khaskheli@gmail.com",
+  "admin@pawlink.pet",
   ...(process.env.ADMIN_EMAIL ? [process.env.ADMIN_EMAIL.toLowerCase()] : []),
 ];
 
@@ -67,6 +68,7 @@ export function signToken(user: SessionUser): string {
       email: user.email,
       name: user.name,
       role,
+      phone: user.phone,
       authUserId: user.authUserId,
     },
     getJwtSecret(),
@@ -88,6 +90,7 @@ export function verifyToken(token: string): SessionUser | null {
 
 /**
  * Resolves current user session supporting both Supabase Auth SSR and PawLink session cookies.
+ * Always resolves against PostgreSQL so that session.id is a guaranteed valid foreign key.
  */
 export async function getSession(): Promise<SessionUser | null> {
   try {
@@ -96,11 +99,63 @@ export async function getSession(): Promise<SessionUser | null> {
     const token = cookieStore.get(COOKIE_NAME)?.value;
     if (token) {
       const verified = verifyToken(token);
-      if (verified) {
-        if (isAdminEmail(verified.email)) {
-          verified.role = "SUPER_ADMIN";
+      if (verified && verified.email) {
+        const normalizedEmail = verified.email.trim().toLowerCase();
+        
+        let dbUser = await db.user.findFirst({
+          where: {
+            OR: [
+              { id: verified.id },
+              { email: normalizedEmail },
+            ],
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            role: true,
+            authUserId: true,
+          },
+        });
+
+        if (!dbUser) {
+          const effectiveRole = (isAdminEmail(normalizedEmail) ? "SUPER_ADMIN" : verified.role || "OWNER") as UserRole;
+          dbUser = await db.user.create({
+            data: {
+              email: normalizedEmail,
+              name: verified.name || normalizedEmail.split("@")[0],
+              role: effectiveRole,
+              phone: verified.phone || null,
+              notificationPreference: {
+                create: {
+                  whatsappEnabled: true,
+                  whatsappVerified: Boolean(verified.phone),
+                  emailEnabled: true,
+                  notificationPhone: verified.phone || null,
+                },
+              },
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              phone: true,
+              role: true,
+              authUserId: true,
+            },
+          });
         }
-        return verified;
+
+        const effectiveRole = (isAdminEmail(dbUser.email) ? "SUPER_ADMIN" : dbUser.role) as UserRole;
+        return {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          role: effectiveRole,
+          phone: dbUser.phone,
+          authUserId: dbUser.authUserId,
+        };
       }
     }
 

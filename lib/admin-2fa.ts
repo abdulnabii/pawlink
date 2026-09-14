@@ -140,10 +140,20 @@ export async function hasAdmin2faSession(targetEmail?: string): Promise<boolean>
     }
 
     if (targetEmail && decoded.email.toLowerCase() !== targetEmail.toLowerCase()) {
-      return false;
+      // If both emails are valid administrators, preserve the session
+      if (!isAdminEmail(decoded.email) || !isAdminEmail(targetEmail)) {
+        return false;
+      }
     }
 
-    return isAdminEmail(decoded.email);
+    if (isAdminEmail(decoded.email)) return true;
+
+    // Check database role if email is not statically listed in ADMIN_EMAILS
+    const u = await db.user.findFirst({
+      where: { email: decoded.email.toLowerCase() },
+      select: { role: true },
+    });
+    return Boolean(u && (u.role === "ADMIN" || u.role === "SUPER_ADMIN"));
   } catch {
     return false;
   }

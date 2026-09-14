@@ -911,35 +911,112 @@ function createSelfHealingDb() {
         return (await resilientStore.findAuditLogs(args)).length;
       },
     },
-    subscriptionRequest: {
+    paymentRequest: {
       findMany: async (args?: any) => {
         if (rawPrisma) {
           try {
-            return await (rawPrisma as any).subscriptionRequest.findMany(args);
-          } catch {}
+            return await (rawPrisma as any).paymentRequest.findMany(args);
+          } catch (err) {
+            console.error("[db.paymentRequest.findMany error]", err);
+          }
         }
         return await resilientStore.getAllPaymentRequests();
       },
+      findUnique: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).paymentRequest.findUnique(args);
+          } catch (err) {
+            console.error("[db.paymentRequest.findUnique error]", err);
+          }
+        }
+        const list = await resilientStore.getAllPaymentRequests();
+        return list.find((r: any) => r.id === args?.where?.id) || null;
+      },
       findFirst: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).paymentRequest.findFirst(args);
+          } catch (err) {
+            console.error("[db.paymentRequest.findFirst error]", err);
+          }
+        }
         const list = await resilientStore.getAllPaymentRequests();
         if (args?.where?.id) return list.find((r: any) => r.id === args.where.id) || null;
         if (args?.where?.userId) return list.find((r: any) => r.userId === args.where.userId) || null;
         return list[0] || null;
       },
       create: async (args: any) => {
-        return await resilientStore.createPaymentRequest({
-          userId: args.data.userId,
-          userEmail: args.data.userEmail || "user@pawlink.app",
-          userName: args.data.senderName || "User",
-          requestedPlan: args.data.plan || "PLUS",
-          amountPKR: args.data.amountPKR || 1499,
-          transactionId: args.data.transactionId || "TXN-TEST",
-          senderName: args.data.senderName || "Sender",
-          senderPhone: args.data.senderPhone || "+923001234567",
-          notes: args.data.notes || "",
-        });
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await (rawPrisma as any).paymentRequest.create(args);
+          } catch (err) {
+            console.error("[db.paymentRequest.create error]", err);
+          }
+        }
+        const storeRes = await resilientStore.createPaymentRequest(args.data);
+        return prismaRes || storeRes;
       },
       update: async (args: any) => {
+        let prismaRes = null;
+        if (rawPrisma) {
+          try {
+            prismaRes = await (rawPrisma as any).paymentRequest.update(args);
+          } catch (err) {
+            console.error("[db.paymentRequest.update error]", err);
+          }
+        }
+        if (args?.data?.status === "APPROVED") {
+          await resilientStore.approvePaymentRequest(args.where.id, args.data?.adminNotes);
+        } else if (args?.data?.status === "REJECTED") {
+          await resilientStore.rejectPaymentRequest(args.where.id, args.data?.adminNotes);
+        }
+        return prismaRes;
+      },
+      count: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).paymentRequest.count(args);
+          } catch {}
+        }
+        return (await resilientStore.getAllPaymentRequests()).length;
+      },
+    },
+    subscriptionRequest: {
+      findMany: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).paymentRequest.findMany(args);
+          } catch {}
+        }
+        return await resilientStore.getAllPaymentRequests();
+      },
+      findFirst: async (args?: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).paymentRequest.findFirst(args);
+          } catch {}
+        }
+        const list = await resilientStore.getAllPaymentRequests();
+        if (args?.where?.id) return list.find((r: any) => r.id === args.where.id) || null;
+        if (args?.where?.userId) return list.find((r: any) => r.userId === args.where.userId) || null;
+        return list[0] || null;
+      },
+      create: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).paymentRequest.create(args);
+          } catch {}
+        }
+        return await resilientStore.createPaymentRequest(args.data);
+      },
+      update: async (args: any) => {
+        if (rawPrisma) {
+          try {
+            return await (rawPrisma as any).paymentRequest.update(args);
+          } catch {}
+        }
         if (args?.data?.status === "APPROVED") {
           return await resilientStore.approvePaymentRequest(args.where.id);
         } else if (args?.data?.status === "REJECTED") {

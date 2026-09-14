@@ -23,6 +23,8 @@ import {
   Send,
   Building,
   HelpCircle,
+  User,
+  Save,
 } from "lucide-react";
 import { BANK_PAYMENT_CONFIG } from "@/lib/plans";
 
@@ -44,8 +46,15 @@ function SettingsContent() {
   const [mounted, setMounted] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Phone verification state (2-step OTP)
+  // Account profile state
+  const [displayName, setDisplayName] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Phone verification state
   const [phone, setPhone] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [demoCode, setDemoCode] = useState<string | null>(null);
@@ -101,6 +110,7 @@ function SettingsContent() {
         }
 
         setUser(userData.user);
+        setDisplayName(userData.user.name || "");
         const pref = userData.user.notificationPreference;
         if (pref) {
           setPhone(pref.notificationPhone || userData.user.phone || "");
@@ -245,17 +255,89 @@ function SettingsContent() {
     }
   };
 
+  const handleDirectSavePhone = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanPhone = (phone || "").trim();
+    if (!cleanPhone) {
+      setVerifyError("Please enter a phone number.");
+      return;
+    }
+    setSavingPhone(true);
+    setVerifyError(null);
+    setVerifySuccess(false);
+
+    try {
+      const res = await fetch("/api/auth/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SAVE_PHONE", phone: cleanPhone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update phone number");
+
+      setVerifySuccess(true);
+      fetchUserData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("pawlink-auth-updated"));
+      }
+      setTimeout(() => setVerifySuccess(false), 4000);
+    } catch (err: any) {
+      setVerifyError(err.message || "Failed to update phone number");
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displayName.trim()) return;
+    setSavingProfile(true);
+    setProfileSuccess(false);
+    setProfileError(null);
+
+    try {
+      const res = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: displayName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update profile");
+      setProfileSuccess(true);
+      fetchUserData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("pawlink-auth-updated"));
+      }
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (err: any) {
+      setProfileError(err.message || "Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const handleToggleWhatsApp = async (enabled: boolean) => {
     setWhatsappEnabled(enabled);
     try {
-      await fetch("/api/auth/whatsapp", {
-        method: "POST",
+      await fetch("/api/auth/me", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "TOGGLE", enabled }),
+        body: JSON.stringify({ whatsappEnabled: enabled }),
       });
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("pawlink-auth-updated"));
       }
+    } catch {}
+  };
+
+  const handleToggleEmail = async (enabled: boolean) => {
+    setEmailEnabled(enabled);
+    try {
+      await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailEnabled: enabled }),
+      });
     } catch {}
   };
 
@@ -373,6 +455,73 @@ function SettingsContent() {
           </span>
         </div>
       )}
+
+      {/* ACCOUNT PROFILE CARD */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <User className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Account Profile</h3>
+              <p className="text-xs text-slate-500">Your personal identity and login details</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+            {user?.role || "OWNER"}
+          </span>
+        </div>
+
+        <form onSubmit={handleSaveProfile} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Your name"
+                className="w-full text-sm rounded-xl border border-slate-300 px-3.5 py-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address</label>
+              <input
+                type="email"
+                disabled
+                value={user?.email || ""}
+                className="w-full text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-500 px-3.5 py-2.5 cursor-not-allowed font-medium"
+              />
+            </div>
+          </div>
+
+          {profileSuccess && (
+            <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Profile updated successfully!</span>
+            </div>
+          )}
+
+          {profileError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+              {profileError}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={savingProfile || !displayName.trim()}
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2"
+            >
+              {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Save Name</span>
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* MEMBERSHIP & SUBSCRIPTION PLANS SECTION */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
@@ -604,14 +753,26 @@ function SettingsContent() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={verifying}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all"
-            >
-              {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <span>{isVerified ? "Send New Verification Code" : "Send WhatsApp OTP Code"}</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleDirectSavePhone}
+                disabled={savingPhone || !phone.trim()}
+                className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 transition-all"
+              >
+                {savingPhone ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                <span>Save Phone Number</span>
+              </button>
+
+              <button
+                type="submit"
+                disabled={verifying}
+                className="py-3 px-5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 flex items-center justify-center gap-2 transition-all"
+              >
+                {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                <span>{isVerified ? "Request New OTP" : "Verify with WhatsApp OTP"}</span>
+              </button>
+            </div>
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4 pt-2 animate-fadeIn">
@@ -714,8 +875,8 @@ function SettingsContent() {
             <input
               type="checkbox"
               checked={emailEnabled}
-              onChange={(e) => setEmailEnabled(e.target.checked)}
-              className="rounded text-teal-600 w-4 h-4"
+              onChange={(e) => handleToggleEmail(e.target.checked)}
+              className="rounded text-teal-600 w-4 h-4 cursor-pointer"
             />
           </div>
         </div>

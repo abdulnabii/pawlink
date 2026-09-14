@@ -449,6 +449,10 @@ export class ResilientDataStore {
   }
 
   private async fetchCloudState() {
+    if (process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith("file:")) {
+      this.isInitialized = true;
+      return;
+    }
     if (this.isSyncing) return;
     this.isSyncing = true;
     try {
@@ -511,6 +515,11 @@ export class ResilientDataStore {
   }
 
   private async executeCloudSave() {
+    // When real PostgreSQL via Prisma is configured, Supabase PostgreSQL is the source of truth.
+    // Avoid writing state blobs into the user's portfolio projects table.
+    if (process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith("file:")) {
+      return;
+    }
     try {
       const statePayload = {
         users: this.users,

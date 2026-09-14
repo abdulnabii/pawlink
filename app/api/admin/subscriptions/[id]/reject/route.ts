@@ -12,12 +12,16 @@ export async function POST(
   try {
     const admin = await requireAdmin();
     const body = await req.json().catch(() => ({}));
-    const adminNotes = body.notes || "Transaction reference could not be verified";
+    const adminNotes = body.adminNotes || body.notes || "Transaction reference could not be verified";
 
-    const rejectedRequest = await resilientStore.rejectPaymentRequest(
-      params.id,
-      adminNotes
-    );
+    const rejectedRequest = await db.paymentRequest.update({
+      where: { id: params.id },
+      data: {
+        status: "REJECTED",
+        adminNotes,
+        reviewedAt: new Date(),
+      },
+    });
 
     if (!rejectedRequest) {
       return NextResponse.json(

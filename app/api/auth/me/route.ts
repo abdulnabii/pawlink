@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { getSession, isAdminEmail } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getSession, isAdminEmail, signToken, COOKIE_NAME } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function GET() {
@@ -91,6 +91,93 @@ export async function GET() {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Authentication resolution failed";
     return NextResponse.json({ user: null, error: message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const { name, phone, emailEnabled, whatsappEnabled, smsEnabled, pushEnabled } = body;
+
+    const userUpdates: any = {};
+    if (typeof name === "string" && name.trim()) {
+      userUpdates.name = name.trim();
+    }
+    if (phone !== undefined) {
+      const cleanPhone = phone ? phone.trim().replace(/[\s-()]/g, "") : null;
+      userUpdates.phone = cleanPhone;
+    }
+
+    let updatedUser = session;
+    if (Object.keys(userUpdates).length > 0) {
+      updatedUser = await db.user.update({
+        where: { id: session.id },
+        data: userUpdates,
+      });
+    }
+
+    const prefUpdates: any = {};
+    if (typeof emailEnabled === "boolean") prefUpdates.emailEnabled = emailEnabled;
+    if (typeof whatsappEnabled === "boolean") {
+      prefUpdates.whatsappEnabled = whatsappEnabled;
+      if (whatsappEnabled && userUpdates.phone) prefUpdates.whatsappVerified = true;
+    }
+    if (typeof smsEnabled === "boolean") prefUpdates.smsEnabled = smsEnabled;
+    if (typeof pushEnabled === "boolean") prefUpdates.pushEnabled = pushEnabled;
+    if (userUpdates.phone !== undefined) prefUpdates.notificationPhone = userUpdates.phone;
+
+    if (Object.keys(prefUpdates).length > 0) {
+      await db.notificationPreference.upsert({
+        where: { userId: session.id },
+        create: {
+          userId: session.id,
+          whatsappEnabled: true,
+          whatsappVerified: Boolean(userUpdates.phone || session.phone),
+          emailEnabled: true,
+          ...prefUpdates,
+        },
+        update: prefUpdates,
+      });
+    }
+
+    const refreshedToken = signToken({
+      id: session.id,
+      email: session.email,
+      name: userUpdates.name || session.name,
+      role: session.role,
+      phone: userUpdates.phone !== undefined ? userUpdates.phone : session.phone,
+      authUserId: session.authUserId,
+    });
+
+    const res = NextResponse.json({
+      success: true,
+      message: "Profile and settings updated successfully",
+      user: {
+        id: session.id,
+        email: session.email,
+        name: userUpdates.name || session.name,
+        phone: userUpdates.phone !== undefined ? userUpdates.phone : session.phone,
+        role: session.role,
+      },
+    });
+
+    res.cookies.set(COOKIE_NAME, refreshedToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    return res;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to update profile";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

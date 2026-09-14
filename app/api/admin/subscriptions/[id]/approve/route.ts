@@ -12,19 +12,7 @@ export async function POST(
   try {
     const admin = await requireAdmin();
     const body = await req.json().catch(() => ({}));
-    const adminNotes = body.notes || `Approved by admin (${admin.email})`;
-
-    const approvedRequest = await resilientStore.approvePaymentRequest(
-      params.id,
-      adminNotes
-    );
-
-    if (!approvedRequest) {
-      return NextResponse.json(
-        { error: "Payment request not found" },
-        { status: 404 }
-      );
-    }
+    const adminNotes = body.notes || body.adminNotes || `Approved by admin (${admin.email})`;
 
     // Format human-readable expiry date: exact same day next month
     const now = new Date();
@@ -36,6 +24,47 @@ export async function POST(
       day: "numeric",
       year: "numeric",
     });
+
+    const approvedRequest = await db.paymentRequest.update({
+      where: { id: params.id },
+      data: {
+        status: "APPROVED",
+        adminNotes,
+        reviewedAt: now,
+      },
+    });
+
+    if (!approvedRequest) {
+      return NextResponse.json(
+        { error: "Payment request not found" },
+        { status: 404 }
+      );
+    }
+
+    // Activate the subscription for this user in PostgreSQL
+    const existingSub = await db.subscription.findFirst({
+      where: { userId: approvedRequest.userId },
+    });
+
+    if (existingSub) {
+      await db.subscription.update({
+        where: { id: existingSub.id },
+        data: {
+          plan: approvedRequest.requestedPlan,
+          status: "ACTIVE",
+          currentPeriodEnd: nextMonth,
+        },
+      });
+    } else {
+      await db.subscription.create({
+        data: {
+          userId: approvedRequest.userId,
+          plan: approvedRequest.requestedPlan,
+          status: "ACTIVE",
+          currentPeriodEnd: nextMonth,
+        },
+      });
+    }
 
     // 1. Immediately create in-app notification for the user in the database
     await db.notification.create({

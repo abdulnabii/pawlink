@@ -9,7 +9,10 @@ import { enqueueNotificationJob, processNotificationQueue } from "@/lib/queue/wo
 export async function GET() {
   try {
     const user = await requireAuth();
-    const requests = await resilientStore.getUserPaymentRequests(user.id);
+    const requests = await db.paymentRequest.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
     return NextResponse.json({
       requests: sanitizePrisma(requests),
       bankConfig: BANK_PAYMENT_CONFIG,
@@ -53,16 +56,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const paymentRequest = await resilientStore.createPaymentRequest({
-      userId: user.id,
-      userEmail: user.email,
-      userName: user.name || "Pet Owner",
-      requestedPlan: planConfig.id,
-      amountPKR: planConfig.pricePKR,
-      transactionId,
-      senderName,
-      senderPhone,
-      notes,
+    const paymentRequest = await db.paymentRequest.create({
+      data: {
+        userId: user.id,
+        userEmail: user.email,
+        userName: user.name || "Pet Owner",
+        requestedPlan: planConfig.id,
+        amountPKR: planConfig.pricePKR,
+        transactionId,
+        senderName,
+        senderPhone,
+        notes,
+      },
     });
 
     // 1. Notify user in-app that payment proof was submitted

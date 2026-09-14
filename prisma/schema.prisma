@@ -26,6 +26,7 @@ model User {
   auditLogs              AuditLog[]
   familyMemberships      FamilyMember[]
   subscriptions          Subscription[]
+  paymentRequests        PaymentRequest[]
   reports                Report[]
   supportTickets         SupportTicket[]
 }
@@ -372,6 +373,29 @@ model Subscription {
   updatedAt         DateTime  @updatedAt
 
   @@index([userId])
+}
+
+model PaymentRequest {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userEmail     String
+  userName      String
+  requestedPlan String    // PLUS, PRO
+  amountPKR     Float
+  transactionId String
+  senderName    String
+  senderPhone   String
+  notes         String?
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  adminNotes    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([transactionId])
 }
 
 model Report {
