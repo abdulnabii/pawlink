@@ -3,6 +3,9 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sanitizePrisma } from "@/lib/sanitize";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin("users");
@@ -61,15 +64,22 @@ export async function GET(req: NextRequest) {
     const total = filtered.length;
     const paginated = filtered.slice(skip, skip + pageSize);
 
-    return NextResponse.json({
-      users: sanitizePrisma(paginated),
-      pagination: {
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize) || 1,
+    return NextResponse.json(
+      {
+        users: sanitizePrisma(paginated),
+        pagination: {
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize) || 1,
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load users";
     const status = message.includes("FORBIDDEN") ? 403 : 401;

@@ -96,23 +96,34 @@ export async function PATCH(
     const { resilientStore } = await import("@/lib/store");
     await resilientStore.syncToCloud(true);
 
-    await db.auditLog.create({
-      data: {
-        userId: admin.id,
-        action: action || (role ? "USER_ROLE_CHANGED" : plan ? "USER_PLAN_CHANGED" : "USER_UPDATED"),
-        entityType: "USER",
-        entityId: params.id,
-        metadata: JSON.stringify({
-          adminEmail: admin.email,
-          previousRole: targetUser.role,
-          newRole: role || targetUser.role,
-          planUpdated: plan || null,
-          reason: reason || "Admin manual modification",
-        }),
-      },
-    });
+    try {
+      await db.auditLog.create({
+        data: {
+          userId: admin.id,
+          action: action || (role ? "USER_ROLE_CHANGED" : plan ? "USER_PLAN_CHANGED" : "USER_UPDATED"),
+          entityType: "USER",
+          entityId: params.id,
+          metadata: JSON.stringify({
+            adminEmail: admin.email,
+            previousRole: targetUser.role,
+            newRole: role || targetUser.role,
+            planUpdated: plan || null,
+            reason: reason || "Admin manual modification",
+          }),
+        },
+      });
+    } catch (auditErr) {
+      console.warn("[Admin PATCH user auditLog error (ignored)]:", auditErr);
+    }
 
-    return NextResponse.json({ success: true, user: sanitizePrisma(updatedUser) });
+    return NextResponse.json(
+      { success: true, user: sanitizePrisma(updatedUser) },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to update user";
     const status = message.includes("FORBIDDEN") ? 403 : 401;

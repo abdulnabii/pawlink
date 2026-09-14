@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, isAdminEmail, signToken, COOKIE_NAME } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const session = await getSession();
@@ -84,10 +87,19 @@ export async function GET() {
     }
 
     if (user && isAdminEmail(user.email)) {
-      user.role = "ADMIN";
+      if (user.role !== "SUPER_ADMIN") {
+        user.role = "ADMIN";
+      }
     }
 
-    return NextResponse.json({ user });
+    return NextResponse.json(
+      { user },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Authentication resolution failed";
     return NextResponse.json({ user: null, error: message }, { status: 500 });

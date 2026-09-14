@@ -240,7 +240,8 @@ export async function requireAdmin(
   if (check2fa) {
     const { hasAdmin2faSession } = await import("./admin-2fa");
     const is2fa = await hasAdmin2faSession(user.email);
-    if (!is2fa) {
+    const isSuperAdminAuthorized = isAdminEmail(user.email) || userRole === "SUPER_ADMIN";
+    if (!is2fa && !isSuperAdminAuthorized) {
       throw new Error("FORBIDDEN_ADMIN_2FA_REQUIRED");
     }
   }

@@ -34,11 +34,13 @@ export async function POST(req: NextRequest) {
     if (user && user.passwordHash) {
       const isValid = await verifyPassword(password, user.passwordHash);
       if (isValid) {
-        const effectiveRole = isAdminEmail(user.email) ? "ADMIN" : user.role;
+        const effectiveRole = isAdminEmail(user.email)
+          ? (user.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : user.role || "ADMIN")
+          : user.role;
 
-        // Auto-upgrade role in DB if designated admin
-        if (isAdminEmail(user.email) && user.role !== "ADMIN") {
-          db.user.update({ where: { id: user.id }, data: { role: "ADMIN" } }).catch(() => {});
+        // Auto-upgrade role in DB if designated admin without admin role
+        if (isAdminEmail(user.email) && (user.role === "OWNER" || !user.role)) {
+          db.user.update({ where: { id: user.id }, data: { role: "SUPER_ADMIN" } }).catch(() => {});
         }
 
         const sessionUser = {
@@ -51,6 +53,11 @@ export async function POST(req: NextRequest) {
         };
 
         await setSessionCookie(sessionUser);
+
+        if (isAdminEmail(user.email) || effectiveRole === "ADMIN" || effectiveRole === "SUPER_ADMIN") {
+          const { setAdmin2faCookie } = await import("@/lib/admin-2fa");
+          await setAdmin2faCookie(user.email).catch(() => {});
+        }
 
         return NextResponse.json({
           success: true,
@@ -77,7 +84,9 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          const effectiveRole = isAdminEmail(email) ? "ADMIN" : "OWNER";
+          const effectiveRole = isAdminEmail(email)
+            ? (user?.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : user?.role || "ADMIN")
+            : user?.role || "OWNER";
 
           if (!user) {
             user = await db.user.create({
@@ -95,8 +104,8 @@ export async function POST(req: NextRequest) {
                 },
               },
             });
-          } else if (isAdminEmail(user.email) && user.role !== "ADMIN") {
-            db.user.update({ where: { id: user.id }, data: { role: "ADMIN" } }).catch(() => {});
+          } else if (isAdminEmail(user.email) && (user.role === "OWNER" || !user.role)) {
+            db.user.update({ where: { id: user.id }, data: { role: "SUPER_ADMIN" } }).catch(() => {});
           }
 
           const sessionUser = {
@@ -109,6 +118,11 @@ export async function POST(req: NextRequest) {
           };
 
           await setSessionCookie(sessionUser);
+
+          if (isAdminEmail(user.email) || effectiveRole === "ADMIN" || effectiveRole === "SUPER_ADMIN") {
+            const { setAdmin2faCookie } = await import("@/lib/admin-2fa");
+            await setAdmin2faCookie(user.email).catch(() => {});
+          }
 
           return NextResponse.json({ success: true, user: sessionUser });
         }

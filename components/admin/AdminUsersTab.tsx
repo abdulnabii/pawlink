@@ -64,8 +64,14 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
     if (planFilter) params.set("plan", planFilter);
     params.set("page", targetPage.toString());
     params.set("pageSize", "15");
+    params.set("_t", Date.now().toString());
 
-    fetch(`/api/admin/users?${params.toString()}`)
+    fetch(`/api/admin/users?${params.toString()}`, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+      },
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
@@ -88,7 +94,7 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
 
   const handleOpenUserDetail = (userId: string) => {
     setLoadingUserDetail(true);
-    fetch(`/api/admin/users/${userId}`)
+    fetch(`/api/admin/users/${userId}?_t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.user) {
@@ -107,14 +113,51 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
 
     try {
       const payload: any = {
-        reason: actionReason || "Admin manual modification",
+        role: newRole,
+        plan: newPlan,
+        reason: actionReason?.trim() || "Admin manual modification",
       };
-      if (actionType === "ROLE") payload.role = newRole;
-      if (actionType === "PLAN") payload.plan = newPlan;
+
+      // Optimistic update so UI reflects change instantaneously
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === actionUser.id) {
+            const currentSubs = u.subscriptions || [];
+            const updatedSubs =
+              currentSubs.length > 0
+                ? [{ ...currentSubs[0], plan: newPlan }]
+                : [{ plan: newPlan, status: "ACTIVE" }];
+            return {
+              ...u,
+              role: newRole,
+              subscriptions: updatedSubs,
+            };
+          }
+          return u;
+        })
+      );
+
+      if (selectedUser && selectedUser.id === actionUser.id) {
+        setSelectedUser((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                role: newRole,
+                subscriptions:
+                  prev.subscriptions?.length > 0
+                    ? [{ ...prev.subscriptions[0], plan: newPlan }]
+                    : [{ plan: newPlan, status: "ACTIVE" }],
+              }
+            : null
+        );
+      }
 
       const res = await fetch(`/api/admin/users/${actionUser.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
         body: JSON.stringify(payload),
       });
       const resData = await res.json();
@@ -127,9 +170,10 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
       setTimeout(() => {
         setActionUser(null);
         setActionSuccess(null);
-      }, 1200);
+      }, 1000);
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Failed to update user");
+      fetchUsers(page);
     } finally {
       setExecutingAction(false);
     }
@@ -710,8 +754,7 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
               <textarea
                 value={actionReason}
                 onChange={(e) => setActionReason(e.target.value)}
-                required
-                placeholder="Reason for modifying user role or subscription tier..."
+                placeholder="Reason for modifying user role or subscription tier (optional)..."
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                 rows={3}
               />

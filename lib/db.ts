@@ -124,7 +124,9 @@ function createSelfHealingDb() {
         if (rawPrisma) {
           try {
             prismaRes = await rawPrisma.user.update(args);
-          } catch {}
+          } catch (err) {
+            console.warn("[db.user.update Prisma warn]:", err);
+          }
         }
         const storeRes = await resilientStore.updateUser(args);
         return prismaRes || storeRes;
