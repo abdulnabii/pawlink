@@ -119,3 +119,44 @@ body {
   animation: glowPulse 2.5s infinite ease-in-out;
 }
 
+/* Isolated Collar Tag Badge Print Styling */
+@media print {
+  @page {
+    size: auto;
+    margin: 15mm;
+  }
+
+  header,
+  nav,
+  aside,
+  footer,
+  button,
+  .no-print,
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show ONLY the physical collar badge */
+  #pawlink-printable-tag-badge,
+  #pawlink-printable-tag-badge * {
+    visibility: visible;
+  }
+
+  #pawlink-printable-tag-badge {
+    position: fixed !important;
+    top: 25mm !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    box-shadow: none !important;
+    border: 2.5px solid #0f172a !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+  }
+}
+

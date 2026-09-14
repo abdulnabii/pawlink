@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { QrCode, Download, Printer, ShieldCheck, Sparkles } from "lucide-react";
 import { getTagRecoveryUrl } from "@/lib/qr";
+import { printTagBadge } from "@/lib/print-badge";
 
 interface PrintableTagBadgeProps {
   tagCode: string;
@@ -29,8 +30,14 @@ export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBad
 
   const handlePrint = () => {
     try {
+      printTagBadge({
+        petName: safePet,
+        tagCode: safeTag,
+        qrUrl,
+      });
+    } catch {
       window.print();
-    } catch {}
+    }
   };
 
   const handleDownloadPng = () => {
@@ -79,7 +86,7 @@ export function PrintableTagBadge({ tagCode, petName, species }: PrintableTagBad
       {/* Visual Badge Card */}
       <div className="flex flex-col md:flex-row items-center justify-center gap-8 p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
         {/* Physical Collar Tag Preview */}
-        <div className="w-48 h-64 bg-white rounded-3xl p-4 shadow-xl border-2 border-slate-900 flex flex-col items-center justify-between text-center relative overflow-hidden">
+        <div id="pawlink-printable-tag-badge" className="w-48 h-64 bg-white rounded-3xl p-4 shadow-xl border-2 border-slate-900 flex flex-col items-center justify-between text-center relative overflow-hidden">
           <div className="w-4 h-4 rounded-full border-2 border-slate-900 bg-slate-100 mx-auto mb-1" />
           <div className="flex items-center gap-1 text-[10px] font-black tracking-widest text-teal-700 uppercase">
             <ShieldCheck className="w-3 h-3 text-teal-600" />

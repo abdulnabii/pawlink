@@ -77,19 +77,27 @@ function AdminPortalInner() {
       fetch("/api/auth/admin-2fa/status").then((r) => r.json()).catch(() => ({})),
     ])
       .then(([meData, statusData]) => {
-        if (!meData.user) {
-          // Allow direct authentication via Admin 2FA challenge
-          setIs2faVerified(false);
-          setAuthLoading(false);
+        if (!meData?.user) {
+          // Unauthenticated visitors must only see the login page with Admin 2FA active
+          router.replace("/auth/login?mode=admin2fa");
           return;
         }
 
         const role = meData.user.role;
-        const isAdminRole = ["SUPER_ADMIN", "ADMIN", "SUPPORT", "MODERATOR", "ANALYST"].includes(role);
+        const adminEmails = [
+          "abdulnabi.khaskhely@gmail.com",
+          "khaskheli.abdulnabi110@gmail.com",
+          "abdulnabi.khaskheli@gmail.com",
+          "admin@pawlink.pet",
+        ];
+        const isEmailAdmin = adminEmails.includes(meData.user.email?.toLowerCase());
+        const isAdminRole =
+          ["SUPER_ADMIN", "ADMIN", "SUPPORT", "MODERATOR", "ANALYST"].includes(role) ||
+          isEmailAdmin;
 
         if (!isAdminRole) {
-          setAuthError("FORBIDDEN: Your account does not have administrative privileges.");
-          setAuthLoading(false);
+          // Regular pet owners / non-admin users must NEVER see the admin panel
+          router.replace("/dashboard");
           return;
         }
 
@@ -107,7 +115,7 @@ function AdminPortalInner() {
         setAuthError(err instanceof Error ? err.message : "Authentication verification failed");
         setAuthLoading(false);
       });
-  }, []);
+  }, [router]);
 
   if (authLoading) {
     return (
@@ -119,11 +127,11 @@ function AdminPortalInner() {
     );
   }
 
-  // 2FA Security Challenge Gate
-  if (!is2faVerified) {
+  // 2FA Security Challenge Gate for confirmed admins
+  if (!is2faVerified && adminUser) {
     return (
       <Admin2FaChallenge
-        initialEmail={adminUser?.email || "abdulnabi.khaskhely@gmail.com"}
+        initialEmail={adminUser.email}
         onVerified={(user) => {
           if (user) setAdminUser(user);
           setIs2faVerified(true);
@@ -149,7 +157,7 @@ function AdminPortalInner() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
             <Link
-              href="/auth/login"
+              href="/auth/login?mode=admin2fa"
               className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-colors"
             >
               Sign In with Admin Account

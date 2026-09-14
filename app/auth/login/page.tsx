@@ -1,13 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ShieldCheck, Lock, Mail, ArrowRight, Loader2, KeyRound, CheckCircle2, AlertCircle, Key } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ShieldCheck,
+  Lock,
+  Mail,
+  ArrowRight,
+  Loader2,
+  KeyRound,
+  CheckCircle2,
+  AlertCircle,
+  ShieldAlert,
+} from "lucide-react";
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter();
-  const [activeMode, setActiveMode] = useState<"standard" | "admin2fa">("standard");
+  const searchParams = useSearchParams();
+
+  const isAdminRequested =
+    searchParams.get("admin") === "true" ||
+    searchParams.get("mode") === "admin2fa" ||
+    searchParams.get("tab") === "admin" ||
+    searchParams.get("role") === "admin";
+
+  const [activeMode, setActiveMode] = useState<"standard" | "admin2fa">(
+    isAdminRequested ? "admin2fa" : "standard"
+  );
 
   // Standard Login State
   const [email, setEmail] = useState("");
@@ -25,6 +45,22 @@ export default function LoginPage() {
   const [admin2faMsg, setAdmin2faMsg] = useState<string | null>(null);
   const [admin2faError, setAdmin2faError] = useState<string | null>(null);
 
+  // Sync mode and query parameters
+  useEffect(() => {
+    if (isAdminRequested) {
+      setActiveMode("admin2fa");
+    }
+    const emailParam = searchParams.get("email");
+    if (emailParam) {
+      setAdminEmail(emailParam);
+      setEmail(emailParam);
+    }
+    const noticeParam = searchParams.get("notice");
+    if (noticeParam === "admin_required") {
+      setAdmin2faError("Administrator authentication required to access platform operations.");
+    }
+  }, [isAdminRequested, searchParams]);
+
   // Countdown timer for resending OTP
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -33,6 +69,25 @@ export default function LoginPage() {
     }, 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
+
+  const handleSwitchTab = (mode: "standard" | "admin2fa") => {
+    setActiveMode(mode);
+    setError(null);
+    setAdmin2faError(null);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (mode === "admin2fa") {
+        url.searchParams.set("mode", "admin2fa");
+        url.searchParams.delete("admin");
+      } else {
+        url.searchParams.delete("mode");
+        url.searchParams.delete("admin");
+        url.searchParams.delete("tab");
+        url.searchParams.delete("role");
+      }
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +204,7 @@ export default function LoginPage() {
           </span>
         </Link>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          {activeMode === "admin2fa" ? "Admin Security Portal" : "Welcome back to PawLink"}
+          {activeMode === "admin2fa" ? "Admin Operations Portal" : "Welcome back to PawLink"}
         </h2>
         <p className="mt-2 text-sm text-slate-400">
           {activeMode === "admin2fa"
@@ -164,7 +219,7 @@ export default function LoginPage() {
           <div className="flex bg-slate-900/80 p-1 rounded-2xl mb-6 border border-slate-700/60">
             <button
               type="button"
-              onClick={() => setActiveMode("standard")}
+              onClick={() => handleSwitchTab("standard")}
               className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
                 activeMode === "standard"
                   ? "bg-teal-500 text-slate-950 shadow"
@@ -176,7 +231,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => {
-                setActiveMode("admin2fa");
+                handleSwitchTab("admin2fa");
                 if (email && !adminEmail) setAdminEmail(email);
               }}
               className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
@@ -354,5 +409,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+          <Loader2 className="w-8 h-8 text-teal-400 animate-spin" />
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
   );
 }

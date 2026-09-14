@@ -12,6 +12,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { printTagBadge } from "@/lib/print-badge";
+
 // Inline the badge to avoid any import chain issues
 function TagBadge({
   tagCode,
@@ -34,9 +36,21 @@ function TagBadge({
   const scanUrl = `${baseUrl}/p/${encodeURIComponent(tagCode)}`;
   const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${encodeURIComponent(scanUrl)}`;
 
+  const handlePrint = () => {
+    try {
+      printTagBadge({
+        petName: petName || "Pet",
+        tagCode: tagCode || "PW-TAG",
+        qrUrl: qrImgUrl,
+      });
+    } catch {
+      window.print();
+    }
+  };
+
   return (
     <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-300 p-6 flex flex-col sm:flex-row items-center gap-6">
-      <div className="w-40 h-52 bg-white rounded-3xl p-3 shadow-lg border-2 border-slate-800 flex flex-col items-center justify-between text-center shrink-0">
+      <div id="pawlink-printable-tag-badge" className="w-40 h-52 bg-white rounded-3xl p-3 shadow-lg border-2 border-slate-800 flex flex-col items-center justify-between text-center shrink-0">
         <div className="text-[9px] font-black tracking-widest text-teal-700 uppercase">PAWLINK TAG</div>
         <img
           src={qrImgUrl}
@@ -75,7 +89,7 @@ function TagBadge({
             Download QR
           </a>
           <button
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="text-[11px] font-bold bg-slate-900 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg transition-colors"
           >
             Print Badge
