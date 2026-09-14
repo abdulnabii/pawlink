@@ -206,22 +206,24 @@ export function AdminSubscriptionsTab() {
                     <td className="px-6 py-4 text-[11px] text-slate-500">
                       {new Date(req.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </td>
-                    <td className="px-6 py-4 text-right space-x-2 sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
+                    <td className="px-6 py-4 text-right space-x-2 sticky right-0 bg-white group-hover:bg-slate-50/80 transition-colors z-10 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)]">
                       {req.status === "PENDING" && (
                         <>
                           <button
                             onClick={() => handleApprove(req.id)}
                             disabled={processingId === req.id}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-[11px] rounded-xl shadow-xs hover:shadow-md hover:shadow-emerald-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
                           >
-                            Approve
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Approve</span>
                           </button>
                           <button
                             onClick={() => handleReject(req.id)}
                             disabled={processingId === req.id}
-                            className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-[11px] rounded-lg border border-red-200 transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-[11px] rounded-xl border border-red-200 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 shadow-xs"
                           >
-                            Reject
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Reject</span>
                           </button>
                         </>
                       )}
