@@ -65,15 +65,15 @@ export class ResilientDataStore {
         email: "abdulnabi.khaskhely@gmail.com",
         passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
         name: "Abdul Nabi Khaskhely",
-        phone: "+923001234567",
+        phone: null,
         role: "SUPER_ADMIN",
         createdAt: new Date(),
         updatedAt: new Date(),
         notificationPreference: {
           whatsappEnabled: true,
-          whatsappVerified: true,
+          whatsappVerified: false,
           emailEnabled: true,
-          notificationPhone: "+923001234567",
+          notificationPhone: null,
         },
       },
       {
@@ -81,15 +81,15 @@ export class ResilientDataStore {
         email: "khaskheli.abdulnabi110@gmail.com",
         passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
         name: "Abdul Nabi",
-        phone: "+923001234567",
+        phone: null,
         role: "SUPER_ADMIN",
         createdAt: new Date(),
         updatedAt: new Date(),
         notificationPreference: {
           whatsappEnabled: true,
-          whatsappVerified: true,
+          whatsappVerified: false,
           emailEnabled: true,
-          notificationPhone: "+923001234567",
+          notificationPhone: null,
         },
       },
       {
@@ -97,15 +97,15 @@ export class ResilientDataStore {
         email: "abdulnabi.khaskheli@gmail.com",
         passwordHash: "$2a$10$8RXbeytATwI6CnsJvNLdA.ZUCnFvEeYEsxA3vW5hJ33oCpwGMBtI6", // abkhaskhely
         name: "Abdul Nabi Khaskheli",
-        phone: "+923001234567",
+        phone: null,
         role: "SUPER_ADMIN",
         createdAt: new Date(),
         updatedAt: new Date(),
         notificationPreference: {
           whatsappEnabled: true,
-          whatsappVerified: true,
+          whatsappVerified: false,
           emailEnabled: true,
-          notificationPhone: "+923001234567",
+          notificationPhone: null,
         },
       },
     ];

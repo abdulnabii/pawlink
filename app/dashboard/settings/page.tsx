@@ -417,7 +417,10 @@ function SettingsContent() {
     }
   };
 
-  const isVerified = Boolean(user?.notificationPreference?.whatsappVerified);
+  const isVerified = Boolean(
+    user?.notificationPreference?.whatsappVerified &&
+    (user?.phone || user?.notificationPreference?.notificationPhone)
+  );
   const pendingRequest = userRequests.find((r) => r.status === "PENDING");
   const currentPlanId = (subscription?.plan || "FREE").toUpperCase();
   const currentPlan = plans.find((p) => p.id === currentPlanId) || plans[0];

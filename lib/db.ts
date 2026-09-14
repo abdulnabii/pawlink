@@ -1,6 +1,26 @@
 import { PrismaClient } from "@prisma/client";
 import { resilientStore } from "./store";
 
+export function normalizeSupabaseDatabaseUrl(url?: string): string | undefined {
+  if (!url) return url;
+  // Supabase project gqqzcznxncatfovulmtp is hosted in Mumbai (aws-1-ap-south-1).
+  // If the host in Vercel settings has aws-0-us-east-1 or any wrong region, auto-heal to aws-1-ap-south-1:
+  if (url.includes("gqqzcznxncatfovulmtp")) {
+    return url.replace(
+      /@aws-[0-9]-[a-z0-9-]+\.pooler\.supabase\.com/,
+      "@aws-1-ap-south-1.pooler.supabase.com"
+    );
+  }
+  return url;
+}
+
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = normalizeSupabaseDatabaseUrl(process.env.DATABASE_URL)!;
+}
+if (process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = normalizeSupabaseDatabaseUrl(process.env.DIRECT_URL)!;
+}
+
 const isPrismaConfigured =
   Boolean(process.env.DATABASE_URL) &&
   !process.env.DATABASE_URL?.startsWith("file:") &&
@@ -14,6 +34,13 @@ export const rawPrisma: PrismaClient | null =
   globalForPrisma.prisma ??
   (isPrismaConfigured
     ? new PrismaClient({
+        datasources: process.env.DATABASE_URL
+          ? {
+              db: {
+                url: normalizeSupabaseDatabaseUrl(process.env.DATABASE_URL),
+              },
+            }
+          : undefined,
         log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
       })
     : null);

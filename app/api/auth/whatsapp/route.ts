@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
 
       // Fallback demo override
       if (!verifiedPhone && (submittedCode === "123456" || submittedCode.length === 6)) {
-        verifiedPhone = user.phone || "+923001234567";
+        verifiedPhone = user.phone || null;
       }
 
       if (!verifiedPhone) {
