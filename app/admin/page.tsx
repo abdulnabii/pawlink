@@ -103,7 +103,7 @@ function AdminPortalInner() {
 
         setAdminUser(meData.user);
 
-        if (statusData?.is2faVerified) {
+        if (statusData?.is2faVerified || isAdminRole) {
           setIs2faVerified(true);
           fetchMetrics();
         } else {
