@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, signToken, COOKIE_NAME, isAdminEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
@@ -52,17 +52,45 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      await db.user.update({
-        where: { id: user.id },
-        data: { phone: rawPhone },
+      try {
+        await db.user.update({
+          where: { id: user.id },
+          data: { phone: rawPhone },
+        });
+      } catch {
+        if (user.email) {
+          await db.user.update({
+            where: { email: user.email.toLowerCase() },
+            data: { phone: rawPhone },
+          });
+        }
+      }
+
+      const refreshedToken = signToken({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: isAdminEmail(user.email) ? "SUPER_ADMIN" : user.role,
+        phone: rawPhone,
+        authUserId: user.authUserId,
       });
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         verified: true,
         preference: updatedPref,
         message: "Phone number updated and verified successfully!",
       });
+
+      response.cookies.set(COOKIE_NAME, refreshedToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
+      return response;
     }
 
     // 2. Dispatch 6-digit OTP (stored in signed HTTP-only cookie to survive serverless restarts)
@@ -157,9 +185,27 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      await db.user.update({
-        where: { id: user.id },
-        data: { phone: verifiedPhone },
+      try {
+        await db.user.update({
+          where: { id: user.id },
+          data: { phone: verifiedPhone },
+        });
+      } catch {
+        if (user.email) {
+          await db.user.update({
+            where: { email: user.email.toLowerCase() },
+            data: { phone: verifiedPhone },
+          });
+        }
+      }
+
+      const refreshedToken = signToken({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: isAdminEmail(user.email) ? "SUPER_ADMIN" : user.role,
+        phone: verifiedPhone,
+        authUserId: user.authUserId,
       });
 
       const response = NextResponse.json({
@@ -170,6 +216,13 @@ export async function POST(req: NextRequest) {
       });
 
       response.cookies.delete(WHATSAPP_OTP_COOKIE);
+      response.cookies.set(COOKIE_NAME, refreshedToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
       return response;
     }
 

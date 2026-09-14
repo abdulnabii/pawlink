@@ -49,15 +49,15 @@ export class ResilientDataStore {
         email: "owner@pawlink.pet",
         passwordHash: "$2a$10$fWvB30K5R7pW4N9y0lU5mOI6iO0m/v2R3hP3E0gY5e8G9d6c7b8a.", // password123
         name: "Ali Khan",
-        phone: "+923001234567",
+        phone: null,
         role: "OWNER",
         createdAt: new Date(),
         updatedAt: new Date(),
         notificationPreference: {
           whatsappEnabled: true,
-          whatsappVerified: true,
+          whatsappVerified: false,
           emailEnabled: true,
-          notificationPhone: "+923001234567",
+          notificationPhone: null,
         },
       },
       {

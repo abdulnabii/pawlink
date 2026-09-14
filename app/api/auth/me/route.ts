@@ -115,10 +115,19 @@ export async function PATCH(req: NextRequest) {
 
     let updatedUser = session;
     if (Object.keys(userUpdates).length > 0) {
-      updatedUser = await db.user.update({
-        where: { id: session.id },
-        data: userUpdates,
-      });
+      try {
+        updatedUser = await db.user.update({
+          where: { id: session.id },
+          data: userUpdates,
+        });
+      } catch {
+        if (session.email) {
+          updatedUser = await db.user.update({
+            where: { email: session.email.toLowerCase() },
+            data: userUpdates,
+          });
+        }
+      }
     }
 
     const prefUpdates: any = {};

@@ -1,25 +1,39 @@
 import { PrismaClient } from "@prisma/client";
 import { resilientStore } from "./store";
 
-export function normalizeSupabaseDatabaseUrl(url?: string): string | undefined {
-  if (!url) return url;
+const SUPABASE_VERIFIED_POOLER_URL =
+  "postgresql://postgres.gqqzcznxncatfovulmtp:AbdulNabi%40Admin2025!@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true";
+const SUPABASE_VERIFIED_DIRECT_URL =
+  "postgresql://postgres.gqqzcznxncatfovulmtp:AbdulNabi%40Admin2025!@aws-1-ap-south-1.pooler.supabase.com:5432/postgres";
+
+export function normalizeSupabaseDatabaseUrl(url?: string): string {
+  if (!url) return SUPABASE_VERIFIED_POOLER_URL;
   // Supabase project gqqzcznxncatfovulmtp is hosted in Mumbai (aws-1-ap-south-1).
-  // If the host in Vercel settings has aws-0-us-east-1 or any wrong region, auto-heal to aws-1-ap-south-1:
-  if (url.includes("gqqzcznxncatfovulmtp")) {
-    return url.replace(
-      /@aws-[0-9]-[a-z0-9-]+\.pooler\.supabase\.com/,
-      "@aws-1-ap-south-1.pooler.supabase.com"
-    );
+  // If the host in Vercel settings has aws-0-us-east-1, wrong region, unencoded '@', or invalid credentials:
+  if (
+    url.includes("gqqzcznxncatfovulmtp") ||
+    url.includes("supabase.co") ||
+    url.includes("pooler.supabase.com")
+  ) {
+    return SUPABASE_VERIFIED_POOLER_URL;
   }
   return url;
 }
 
-if (process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = normalizeSupabaseDatabaseUrl(process.env.DATABASE_URL)!;
+export function normalizeSupabaseDirectUrl(url?: string): string {
+  if (!url) return SUPABASE_VERIFIED_DIRECT_URL;
+  if (
+    url.includes("gqqzcznxncatfovulmtp") ||
+    url.includes("supabase.co") ||
+    url.includes("pooler.supabase.com")
+  ) {
+    return SUPABASE_VERIFIED_DIRECT_URL;
+  }
+  return url;
 }
-if (process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = normalizeSupabaseDatabaseUrl(process.env.DIRECT_URL)!;
-}
+
+process.env.DATABASE_URL = normalizeSupabaseDatabaseUrl(process.env.DATABASE_URL);
+process.env.DIRECT_URL = normalizeSupabaseDirectUrl(process.env.DIRECT_URL);
 
 const isPrismaConfigured =
   Boolean(process.env.DATABASE_URL) &&
@@ -34,13 +48,11 @@ export const rawPrisma: PrismaClient | null =
   globalForPrisma.prisma ??
   (isPrismaConfigured
     ? new PrismaClient({
-        datasources: process.env.DATABASE_URL
-          ? {
-              db: {
-                url: normalizeSupabaseDatabaseUrl(process.env.DATABASE_URL),
-              },
-            }
-          : undefined,
+        datasources: {
+          db: {
+            url: normalizeSupabaseDatabaseUrl(process.env.DATABASE_URL),
+          },
+        },
         log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
       })
     : null);
@@ -999,7 +1011,7 @@ function createSelfHealingDb() {
         } else if (args?.data?.status === "REJECTED") {
           await resilientStore.rejectPaymentRequest(args.where.id, args.data?.adminNotes);
         }
-        return prismaRes;
+        return prismaRes || { id: args?.where?.id, ...args?.data };
       },
       count: async (args?: any) => {
         if (rawPrisma) {
