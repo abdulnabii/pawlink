@@ -72,9 +72,31 @@ export async function GET(
   .qr-text p { font-size: 10px; color: #16a34a; margin-top: 4px; line-height: 1.5; }
   .footer { background: #0f172a; color: #64748b; padding: 12px 20px; text-align: center; font-size: 10px; }
   @media print {
-    body { background: white; padding: 0; }
-    .card { box-shadow: none; border-radius: 0; width: 100%; }
-    .print-btn { display: none; }
+    @page {
+      size: auto;
+      margin: 10mm;
+    }
+    body {
+      background: white !important;
+      padding: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    .card {
+      box-shadow: none !important;
+      border: 2px solid #0f172a !important;
+      border-radius: 20px !important;
+      width: 380px !important;
+      max-width: 380px !important;
+      margin: 15mm auto !important;
+      page-break-inside: avoid !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .print-btn {
+      display: none !important;
+    }
   }
 </style>
 </head>
