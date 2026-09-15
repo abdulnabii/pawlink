@@ -758,21 +758,20 @@ function createSelfHealingDb() {
       findUnique: async (args: any) => {
         if (rawPrisma) {
           try {
-            const res = await rawPrisma.subscription.findUnique(args);
-            if (res) return res;
-          } catch {}
+            return await rawPrisma.subscription.findUnique(args);
+          } catch (err) {
+            console.warn("[db.subscription.findUnique Prisma warn]:", err);
+          }
         }
         return await resilientStore.findSubscriptionFirst(args);
       },
       findFirst: async (args: any) => {
         if (rawPrisma) {
           try {
-            const res = await rawPrisma.subscription.findFirst(args);
-            if (res) return res;
-          } catch {}
-        }
-        if (args?.where?.userId) {
-          return await resilientStore.getUserSubscription(args.where.userId);
+            return await rawPrisma.subscription.findFirst(args);
+          } catch (err) {
+            console.warn("[db.subscription.findFirst Prisma warn]:", err);
+          }
         }
         return await resilientStore.findSubscriptionFirst(args);
       },
@@ -780,7 +779,9 @@ function createSelfHealingDb() {
         if (rawPrisma) {
           try {
             return await rawPrisma.subscription.findMany(args);
-          } catch {}
+          } catch (err) {
+            console.warn("[db.subscription.findMany Prisma warn]:", err);
+          }
         }
         return await resilientStore.findSubscriptions(args);
       },
@@ -790,7 +791,9 @@ function createSelfHealingDb() {
         if (rawPrisma) {
           try {
             prismaRes = await rawPrisma.subscription.create(args);
-          } catch {}
+          } catch (err) {
+            console.error("[db.subscription.create Prisma error]:", err);
+          }
         }
         const storeRes = await resilientStore.createSubscription(args);
         return prismaRes || storeRes;
@@ -800,7 +803,9 @@ function createSelfHealingDb() {
         if (rawPrisma) {
           try {
             prismaRes = await rawPrisma.subscription.update(args);
-          } catch {}
+          } catch (err) {
+            console.error("[db.subscription.update Prisma error]:", err);
+          }
         }
         const storeRes = await resilientStore.updateSubscription(args);
         return prismaRes || storeRes;

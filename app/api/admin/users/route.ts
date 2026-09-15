@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, rawPrisma } from "@/lib/db";
 import { sanitizePrisma } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
@@ -17,28 +17,55 @@ export async function GET(req: NextRequest) {
     const pageSize = Math.min(100, Math.max(10, parseInt(searchParams.get("pageSize") || "20", 10)));
     const skip = (page - 1) * pageSize;
 
-    const allUsers = await db.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-        subscriptions: {
-          select: { plan: true, status: true },
-          take: 1,
-        },
-        _count: {
+    const allUsers = await (rawPrisma
+      ? rawPrisma.user.findMany({
           select: {
-            pets: true,
-            tagAssignments: true,
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+            subscriptions: {
+              select: { plan: true, status: true },
+              where: { status: "ACTIVE" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+            _count: {
+              select: {
+                pets: true,
+                tagAssignments: true,
+              },
+            },
           },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+          orderBy: { createdAt: "desc" },
+        })
+      : db.user.findMany({
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+            subscriptions: {
+              select: { plan: true, status: true },
+              where: { status: "ACTIVE" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+            _count: {
+              select: {
+                pets: true,
+                tagAssignments: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        }));
 
     let filtered = allUsers;
     if (search) {

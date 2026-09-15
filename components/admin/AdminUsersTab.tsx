@@ -165,6 +165,15 @@ export function AdminUsersTab({ adminRole }: AdminUsersTabProps) {
         throw new Error(resData.error || "Action execution failed");
       }
 
+      if (resData.user) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === actionUser.id ? { ...u, ...resData.user } : u))
+        );
+        if (selectedUser && selectedUser.id === actionUser.id) {
+          setSelectedUser((prev: any) => (prev ? { ...prev, ...resData.user } : null));
+        }
+      }
+
       setActionSuccess("User updated successfully!");
       fetchUsers(page);
       setTimeout(() => {
