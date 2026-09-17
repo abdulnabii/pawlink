@@ -118,189 +118,15 @@ export function PawLinkAnimatedLogo({
           {/* Glowing Shadow Cushion */}
           <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-teal-500 to-emerald-400 opacity-60 blur-md group-hover:opacity-100 transition-opacity" />
 
-          {/* SVG Emblem Component */}
-          <svg
-            viewBox="0 0 100 100"
-            className="w-full h-full relative z-10 drop-shadow-2xl rounded-3xl"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id="pl-anim-comp-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#5eead4" />
-                <stop offset="45%" stopColor="#0d9488" />
-                <stop offset="100%" stopColor="#059669" />
-              </linearGradient>
-
-              <linearGradient id="pl-anim-comp-accent" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="50%" stopColor="#38bdf8" />
-                <stop offset="100%" stopColor="#2dd4bf" />
-              </linearGradient>
-
-              <linearGradient id="pl-anim-comp-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#0f172a" />
-                <stop offset="60%" stopColor="#090d16" />
-                <stop offset="100%" stopColor="#020617" />
-              </linearGradient>
-
-              <filter id="pl-anim-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-
-            {/* Dark Metallic Squircle Body */}
-            <rect
-              x="3"
-              y="3"
-              width="94"
-              height="94"
-              rx="24"
-              fill="url(#pl-anim-comp-bg)"
-              stroke="#334155"
-              strokeWidth="1.5"
+          {/* Official Emblem Disc */}
+          <div className="relative z-10 w-full h-full rounded-full bg-slate-950/80 p-1.5 backdrop-blur-md border border-teal-500/30 flex items-center justify-center shadow-2xl overflow-hidden">
+            <img
+              src="/logo-icon.png"
+              alt="PawLink Official Emblem"
+              className="w-full h-full object-contain drop-shadow-md select-none"
+              loading="eager"
             />
-
-            {/* Subtle Inner Rim */}
-            <rect
-              x="6"
-              y="6"
-              width="88"
-              height="88"
-              rx="21"
-              fill="none"
-              stroke="url(#pl-anim-comp-grad)"
-              strokeWidth="0.75"
-              opacity="0.4"
-            />
-
-            {/* 4 Paw Toe Nodes */}
-            <ellipse
-              cx="28"
-              cy="38"
-              rx="6.5"
-              ry="9"
-              transform="rotate(-24 28 38)"
-              fill="url(#pl-anim-comp-grad)"
-              filter="url(#pl-anim-glow)"
-            />
-            <ellipse
-              cx="26.5"
-              cy="35.5"
-              rx="3"
-              ry="5"
-              transform="rotate(-24 26.5 35.5)"
-              fill="#a7f3d0"
-              opacity="0.5"
-            />
-
-            <ellipse
-              cx="42.5"
-              cy="27"
-              rx="7"
-              ry="10"
-              transform="rotate(-8 42.5 27)"
-              fill="url(#pl-anim-comp-grad)"
-              filter="url(#pl-anim-glow)"
-            />
-            <ellipse
-              cx="41"
-              cy="24"
-              rx="3"
-              ry="5.5"
-              transform="rotate(-8 41 24)"
-              fill="#a7f3d0"
-              opacity="0.5"
-            />
-
-            <ellipse
-              cx="57.5"
-              cy="27"
-              rx="7"
-              ry="10"
-              transform="rotate(8 57.5 27)"
-              fill="url(#pl-anim-comp-grad)"
-              filter="url(#pl-anim-glow)"
-            />
-            <ellipse
-              cx="56"
-              cy="24"
-              rx="3"
-              ry="5.5"
-              transform="rotate(8 56 24)"
-              fill="#a7f3d0"
-              opacity="0.5"
-            />
-
-            <ellipse
-              cx="72"
-              cy="38"
-              rx="6.5"
-              ry="9"
-              transform="rotate(24 72 38)"
-              fill="url(#pl-anim-comp-grad)"
-              filter="url(#pl-anim-glow)"
-            />
-            <ellipse
-              cx="70.5"
-              cy="35.5"
-              rx="3"
-              ry="5"
-              transform="rotate(24 70.5 35.5)"
-              fill="#a7f3d0"
-              opacity="0.5"
-            />
-
-            {/* Central Upper Pad Crown */}
-            <path
-              d="M 37 47 C 37 43, 42 39, 50 39 C 58 39, 63 43, 63 47 C 63 53, 57 57, 50 59 C 43 57, 37 53, 37 47 Z"
-              fill="url(#pl-anim-comp-grad)"
-            />
-            <ellipse cx="50" cy="44.5" rx="7" ry="2.5" fill="#a7f3d0" opacity="0.5" />
-
-            {/* Interwoven Infinity Link Loop (The 'Link') */}
-            <path
-              d="M 50 59 
-                 C 42 50, 29 50, 24 56
-                 C 17 63, 18 74, 26 78
-                 C 35 82, 45 71, 50 64
-                 C 55 71, 65 82, 74 78
-                 C 82 74, 83 63, 76 56
-                 C 71 50, 58 50, 50 59 Z"
-              fill="none"
-              stroke="url(#pl-anim-comp-grad)"
-              strokeWidth="6.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter="url(#pl-anim-glow)"
-            />
-
-            {/* Core Electric Highlight Line */}
-            <path
-              d="M 50 59 
-                 C 42 50, 29 50, 24 56
-                 C 17 63, 18 74, 26 78
-                 C 35 82, 45 71, 50 64
-                 C 55 71, 65 82, 74 78
-                 C 82 74, 83 63, 76 56
-                 C 71 50, 58 50, 50 59 Z"
-              fill="none"
-              stroke="url(#pl-anim-comp-accent)"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {/* Central Beacon Sparkle with Dynamic Pulse */}
-            <circle
-              cx="50"
-              cy="62.5"
-              r="3.5"
-              fill="#ffffff"
-              className={isHovered ? "animate-ping" : ""}
-            />
-          </svg>
+          </div>
         </div>
       </div>
 
@@ -313,6 +139,10 @@ export function PawLinkAnimatedLogo({
               Link
             </span>
           </div>
+
+          <p className="text-[10px] text-teal-300/80 font-bold tracking-widest uppercase mt-0.5">
+            Pets Always Find Their Way Home
+          </p>
 
           {statusText && (
             <div className="mt-1.5 flex items-center justify-center gap-1.5">
