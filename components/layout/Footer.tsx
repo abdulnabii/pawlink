@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ShieldCheck, Heart, Lock, AlertTriangle } from "lucide-react";
+import { PawLinkLogo } from "@/components/ui/PawLinkLogo";
 
 export function Footer() {
   return (
@@ -8,20 +9,21 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-slate-800">
           {/* Brand Col */}
           <div className="md:col-span-2 space-y-4">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-teal-500 flex items-center justify-center text-slate-950 font-bold">
-                <ShieldCheck className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white tracking-tight">
-                Paw<span className="text-teal-400">Link</span>
-              </span>
-            </Link>
+            <PawLinkLogo variant="full" size="md" theme="dark" href="/" />
             <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
               Smart Pet Identification & QR Recovery Infrastructure. Connecting lost pets with their families through instant mobile scans, WhatsApp alerts, and privacy-preserving location sharing.
             </p>
-            <div className="inline-flex items-center gap-2 text-xs bg-slate-800/80 text-teal-300 px-3 py-1.5 rounded-lg border border-slate-700">
-              <Lock className="w-3.5 h-3.5" />
-              <span>Zero-Tracking Privacy Guarantee</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 text-xs bg-slate-800/80 text-teal-300 px-3 py-1.5 rounded-lg border border-slate-700">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Zero-Tracking Privacy Guarantee</span>
+              </div>
+              <Link
+                href="/brand"
+                className="inline-flex items-center gap-1.5 text-xs bg-teal-950/60 hover:bg-teal-900/80 text-teal-300 px-2.5 py-1.5 rounded-lg border border-teal-800/60 transition-colors"
+              >
+                <span>🎨 Brand &amp; Logo Kit</span>
+              </Link>
             </div>
           </div>
 

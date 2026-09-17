@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Vibrant Emerald-Teal Primary Gradient -->
+    <linearGradient id="pl-anim-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="50%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+
+    <!-- Glowing Highlight Gradient -->
+    <linearGradient id="pl-anim-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="40%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2dd4bf" />
+    </linearGradient>
+
+    <radialGradient id="pl-radar-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.6" />
+      <stop offset="60%" stop-color="#0d9488" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#0d9488" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Deep Slate Background Gradient -->
+    <linearGradient id="pl-anim-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="pl-glow-heavy" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="pl-glow-subtle" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <style>
+      /* Embedded SVG Keyframe Animations */
+      @keyframes plRadarPulse {
+        0% {
+          r: 10px;
+          opacity: 0.8;
+          stroke-width: 2.5px;
+        }
+        50% {
+          opacity: 0.4;
+        }
+        100% {
+          r: 52px;
+          opacity: 0;
+          stroke-width: 0.5px;
+        }
+      }
+
+      @keyframes plRadarPulseDelayed {
+        0% {
+          r: 10px;
+          opacity: 0.7;
+          stroke-width: 2px;
+        }
+        50% {
+          opacity: 0.3;
+        }
+        100% {
+          r: 45px;
+          opacity: 0;
+          stroke-width: 0.5px;
+        }
+      }
+
+      @keyframes plBreathe {
+        0%, 100% {
+          transform: scale(1);
+          filter: drop-shadow(0 0 6px rgba(45, 212, 191, 0.4));
+        }
+        50% {
+          transform: scale(1.035);
+          filter: drop-shadow(0 0 16px rgba(45, 212, 191, 0.75));
+        }
+      }
+
+      @keyframes plBeaconOrbit {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes plCoreGlow {
+        0%, 100% {
+          opacity: 0.4;
+          transform: scale(0.9);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.15);
+        }
+      }
+
+      .pl-radar-ring-1 {
+        animation: plRadarPulse 3s cubic-bezier(0.1, 0.4, 0.2, 1) infinite;
+        transform-origin: 60px 65px;
+      }
+
+      .pl-radar-ring-2 {
+        animation: plRadarPulseDelayed 3s cubic-bezier(0.1, 0.4, 0.2, 1) infinite;
+        animation-delay: 1.5s;
+        transform-origin: 60px 65px;
+      }
+
+      .pl-emblem-breathe {
+        animation: plBreathe 3.6s ease-in-out infinite;
+        transform-origin: 60px 60px;
+      }
+
+      .pl-orbit-group {
+        animation: plBeaconOrbit 14s linear infinite;
+        transform-origin: 60px 65px;
+      }
+
+      .pl-sparkle {
+        animation: plCoreGlow 2.4s ease-in-out infinite;
+        transform-origin: 60px 73px;
+      }
+    </style>
+  </defs>
+
+  <!-- Background App Icon Squircle -->
+  <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#pl-anim-bg)" stroke="#1e293b" stroke-width="1.5" />
+
+  <!-- Animated Radar Pulse Wave Rings -->
+  <circle cx="60" cy="65" r="10" fill="none" stroke="#2dd4bf" class="pl-radar-ring-1" />
+  <circle cx="60" cy="65" r="10" fill="none" stroke="#38bdf8" class="pl-radar-ring-2" />
+
+  <!-- Subtle Radial Radar Glow Core -->
+  <circle cx="60" cy="65" r="42" fill="url(#pl-radar-glow)" opacity="0.35" />
+
+  <!-- Orbiting Telemetry Nodes -->
+  <g class="pl-orbit-group">
+    <circle cx="60" cy="18" r="2" fill="#2dd4bf" opacity="0.85" filter="url(#pl-glow-subtle)" />
+    <circle cx="107" cy="65" r="1.5" fill="#38bdf8" opacity="0.75" />
+    <circle cx="13" cy="65" r="1.5" fill="#34d399" opacity="0.75" />
+  </g>
+
+  <!-- Breathing Emblem Core -->
+  <g class="pl-emblem-breathe">
+    <!-- Outer Left Toe -->
+    <ellipse cx="33" cy="45" rx="7.5" ry="10" transform="rotate(-24 33 45)" fill="url(#pl-anim-primary)" filter="url(#pl-glow-subtle)" />
+    <ellipse cx="31.5" cy="42" rx="3.5" ry="5.5" transform="rotate(-24 31.5 42)" fill="#a7f3d0" opacity="0.45" />
+
+    <!-- Inner Left Toe -->
+    <ellipse cx="50" cy="33" rx="8" ry="11.5" transform="rotate(-8 50 33)" fill="url(#pl-anim-primary)" filter="url(#pl-glow-subtle)" />
+    <ellipse cx="48.5" cy="29.5" rx="3.5" ry="6.5" transform="rotate(-8 48.5 29.5)" fill="#a7f3d0" opacity="0.45" />
+
+    <!-- Inner Right Toe -->
+    <ellipse cx="70" cy="33" rx="8" ry="11.5" transform="rotate(8 70 33)" fill="url(#pl-anim-primary)" filter="url(#pl-glow-subtle)" />
+    <ellipse cx="68.5" cy="29.5" rx="3.5" ry="6.5" transform="rotate(8 68.5 29.5)" fill="#a7f3d0" opacity="0.45" />
+
+    <!-- Outer Right Toe -->
+    <ellipse cx="87" cy="45" rx="7.5" ry="10" transform="rotate(24 87 45)" fill="url(#pl-anim-primary)" filter="url(#pl-glow-subtle)" />
+    <ellipse cx="85.5" cy="42" rx="3.5" ry="5.5" transform="rotate(24 85.5 42)" fill="#a7f3d0" opacity="0.45" />
+
+    <!-- Upper Central Main Pad -->
+    <path d="M 44 57 C 44 53, 50 49, 60 49 C 70 49, 76 53, 76 57 C 76 64, 69 68, 60 70 C 51 68, 44 64, 44 57 Z"
+          fill="url(#pl-anim-primary)" />
+    <ellipse cx="60" cy="54" rx="8" ry="3" fill="#a7f3d0" opacity="0.45" />
+
+    <!-- Seamless Infinity Link Loop (The 'Link') Interwoven Underneath -->
+    <path d="M 60 70 
+             C 51 60, 36 60, 30 67
+             C 22 75, 23 88, 33 93
+             C 43 97, 54 85, 60 76
+             C 66 85, 77 97, 87 93
+             C 97 88, 98 75, 90 67
+             C 84 60, 69 60, 60 70 Z"
+          fill="none"
+          stroke="url(#pl-anim-primary)"
+          stroke-width="7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          filter="url(#pl-glow-heavy)" />
+
+    <path d="M 60 70 
+             C 51 60, 36 60, 30 67
+             C 22 75, 23 88, 33 93
+             C 43 97, 54 85, 60 76
+             C 66 85, 77 97, 87 93
+             C 97 88, 98 75, 90 67
+             C 84 60, 69 60, 60 70 Z"
+          fill="none"
+          stroke="url(#pl-anim-accent)"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round" />
+
+    <!-- Pulsing Central Beacon Sparkle -->
+    <circle cx="60" cy="73" r="3.5" fill="#ffffff" class="pl-sparkle" filter="url(#pl-glow-heavy)" />
+  </g>
+</svg>

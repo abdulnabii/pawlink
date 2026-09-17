@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { NotificationCenter } from "@/components/layout/NotificationCenter";
+import { PawLinkLogo } from "@/components/ui/PawLinkLogo";
 
 
 interface UserProfile {
@@ -110,14 +111,7 @@ export function DashboardNav() {
       <div>
         {/* Brand */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-teal-500 flex items-center justify-center text-slate-950 font-bold">
-              <ShieldCheck className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">
-              Paw<span className="text-teal-400">Link</span>
-            </span>
-          </Link>
+          <PawLinkLogo variant="compact" size="md" theme="dark" href="/dashboard" />
           <div className="flex items-center gap-2">
             <NotificationCenter />
             <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">

@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="pl-mark-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="50%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="pl-mark-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a7f3d0" />
+      <stop offset="60%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0d9488" />
+    </linearGradient>
+  </defs>
+
+  <!-- Signal Node Dots -->
+  <circle cx="15" cy="50" r="2" fill="#2dd4bf" opacity="0.8" />
+  <circle cx="85" cy="50" r="2" fill="#2dd4bf" opacity="0.8" />
+  <circle cx="50" cy="88" r="2" fill="#38bdf8" />
+
+  <!-- Outer Left Toe -->
+  <ellipse cx="26" cy="36" rx="6.5" ry="9" transform="rotate(-24 26 36)" fill="url(#pl-mark-primary)" />
+  <ellipse cx="24.5" cy="33.5" rx="3" ry="5" transform="rotate(-24 24.5 33.5)" fill="#a7f3d0" opacity="0.4" />
+
+  <!-- Inner Left Toe -->
+  <ellipse cx="41.5" cy="25" rx="7" ry="10" transform="rotate(-8 41.5 25)" fill="url(#pl-mark-primary)" />
+  <ellipse cx="40" cy="22" rx="3" ry="5.5" transform="rotate(-8 40 22)" fill="#a7f3d0" opacity="0.4" />
+
+  <!-- Inner Right Toe -->
+  <ellipse cx="58.5" cy="25" rx="7" ry="10" transform="rotate(8 58.5 25)" fill="url(#pl-mark-primary)" />
+  <ellipse cx="57" cy="22" rx="3" ry="5.5" transform="rotate(8 57 22)" fill="#a7f3d0" opacity="0.4" />
+
+  <!-- Outer Right Toe -->
+  <ellipse cx="74" cy="36" rx="6.5" ry="9" transform="rotate(24 74 36)" fill="url(#pl-mark-primary)" />
+  <ellipse cx="72.5" cy="33.5" rx="3" ry="5" transform="rotate(24 72.5 33.5)" fill="#a7f3d0" opacity="0.4" />
+
+  <!-- Upper Central Main Pad -->
+  <path d="M 37 46 C 37 42, 42 38, 50 38 C 58 38, 63 42, 63 46 C 63 52, 57 56, 50 58 C 43 56, 37 52, 37 46 Z"
+        fill="url(#pl-mark-primary)" />
+  <ellipse cx="50" cy="43.5" rx="7" ry="2.5" fill="#a7f3d0" opacity="0.4" />
+
+  <!-- Seamless Infinity Link Loop -->
+  <path d="M 50 58 
+           C 42 49, 29 49, 24 55
+           C 17 62, 18 73, 26 77
+           C 35 81, 45 70, 50 63
+           C 55 70, 65 81, 74 77
+           C 82 73, 83 62, 76 55
+           C 71 49, 58 49, 50 58 Z"
+        fill="none"
+        stroke="url(#pl-mark-primary)"
+        stroke-width="6"
+        stroke-linecap="round"
+        stroke-linejoin="round" />
+
+  <!-- Internal Core Line -->
+  <path d="M 50 58 
+           C 42 49, 29 49, 24 55
+           C 17 62, 18 73, 26 77
+           C 35 81, 45 70, 50 63
+           C 55 70, 65 81, 74 77
+           C 82 73, 83 62, 76 55
+           C 71 49, 58 49, 50 58 Z"
+        fill="none"
+        stroke="url(#pl-mark-accent)"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round" />
+
+  <!-- Central Intersecting Sparkle -->
+  <circle cx="50" cy="61.5" r="3" fill="#ffffff" />
+</svg>

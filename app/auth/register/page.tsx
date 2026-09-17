@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck, Lock, Mail, User, Phone, ArrowRight, Loader2, Sparkles, Crown, Shield } from "lucide-react";
+import { PawLinkLogo } from "@/components/ui/PawLinkLogo";
 
 function RegisterForm() {
   const router = useRouter();
@@ -177,14 +178,9 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
-          <div className="w-12 h-12 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 shadow-lg shadow-teal-500/20 group-hover:scale-105 transition-transform">
-            <ShieldCheck className="w-7 h-7 text-white" />
-          </div>
-          <span className="text-2xl font-black tracking-tight text-white">
-            Paw<span className="text-teal-400">Link</span>
-          </span>
-        </Link>
+        <div className="flex justify-center mb-6">
+          <PawLinkLogo variant="full" size="lg" theme="dark" href="/" />
+        </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
           Protect Your Pet Today
         </h2>

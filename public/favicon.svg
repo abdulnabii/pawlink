@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" fill="none">
+  <defs>
+    <linearGradient id="pl-fav-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="50%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="pl-fav-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+  </defs>
+
+  <rect width="100" height="100" rx="24" fill="url(#pl-fav-bg)" />
+
+  <ellipse cx="26" cy="36" rx="6.5" ry="9" transform="rotate(-24 26 36)" fill="url(#pl-fav-grad)" />
+  <ellipse cx="41.5" cy="25" rx="7" ry="10" transform="rotate(-8 41.5 25)" fill="url(#pl-fav-grad)" />
+  <ellipse cx="58.5" cy="25" rx="7" ry="10" transform="rotate(8 58.5 25)" fill="url(#pl-fav-grad)" />
+  <ellipse cx="74" cy="36" rx="6.5" ry="9" transform="rotate(24 74 36)" fill="url(#pl-fav-grad)" />
+
+  <path d="M 37 46 C 37 42, 42 38, 50 38 C 58 38, 63 42, 63 46 C 63 52, 57 56, 50 58 C 43 56, 37 52, 37 46 Z"
+        fill="url(#pl-fav-grad)" />
+
+  <path d="M 50 58 
+           C 42 49, 29 49, 24 55
+           C 17 62, 18 73, 26 77
+           C 35 81, 45 70, 50 63
+           C 55 70, 65 81, 74 77
+           C 82 73, 83 62, 76 55
+           C 71 49, 58 49, 50 58 Z"
+        fill="none"
+        stroke="url(#pl-fav-grad)"
+        stroke-width="6.5"
+        stroke-linecap="round"
+        stroke-linejoin="round" />
+
+  <circle cx="50" cy="61.5" r="3" fill="#ffffff" />
+</svg>

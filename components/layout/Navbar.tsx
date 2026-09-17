@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { ShieldCheck, QrCode, Menu, X, ArrowRight, BellRing } from "lucide-react";
+import { PawLinkLogo } from "@/components/ui/PawLinkLogo";
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -35,19 +36,7 @@ export function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 flex items-center justify-center text-white shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-1">
-              Paw<span className="text-teal-600">Link</span>
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 block -mt-1">
-              Smart Pet Recovery
-            </span>
-          </div>
-        </Link>
+        <PawLinkLogo variant="full" size="md" href="/" />
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">

@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ShieldAlert,
 } from "lucide-react";
+import { PawLinkLogo } from "@/components/ui/PawLinkLogo";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -189,14 +190,9 @@ function LoginFormContent() {
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center relative z-10">
-        <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
-          <div className="w-12 h-12 rounded-2xl bg-teal-500 flex items-center justify-center text-slate-950 shadow-lg shadow-teal-500/20 group-hover:scale-105 transition-transform">
-            <ShieldCheck className="w-7 h-7 text-white" />
-          </div>
-          <span className="text-2xl font-black tracking-tight text-white">
-            Paw<span className="text-teal-400">Link</span>
-          </span>
-        </Link>
+        <div className="flex justify-center mb-6">
+          <PawLinkLogo variant="full" size="lg" theme="dark" href="/" />
+        </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
           {isAdminRequested ? "Admin Operations Portal" : "Welcome back to PawLink"}
         </h2>

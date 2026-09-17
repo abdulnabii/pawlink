@@ -24,6 +24,7 @@ import {
   Shield,
 } from "lucide-react";
 import { hasAdminPermission, AdminSection } from "@/lib/permissions";
+import { PawLinkLogo } from "@/components/ui/PawLinkLogo";
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -116,17 +117,7 @@ export function AdminSidebar({
     <div className="flex flex-col h-full bg-slate-900 text-slate-300 w-64 select-none border-r border-slate-800/80">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-800/90 flex items-center justify-between bg-slate-950/40">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center text-slate-950 shadow-lg shadow-teal-500/20 transition-transform duration-300 hover:scale-105">
-            <Shield className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="font-black text-white text-base tracking-tight block">PAWLINK</span>
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-teal-400 block -mt-1">
-              Operations Console
-            </span>
-          </div>
-        </div>
+        <PawLinkLogo variant="compact" size="md" theme="dark" href="/admin" />
         {mobileOpen && (
           <button
             onClick={() => setMobileOpen(false)}
