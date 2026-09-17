@@ -41,7 +41,7 @@ export function PawLinkEmblem({
 
       {/* Official Dog + Cat + Collar QR Tag + Hand/Pin Emblem */}
       <img
-        src="/logo-icon.png"
+        src="/logo-icon.png?v=2"
         alt="PawLink Emblem"
         className="w-full h-full object-contain select-none transition-transform duration-200 group-hover:scale-105 drop-shadow-md"
         loading="eager"
@@ -64,7 +64,7 @@ export function PawLinkLogo({
   // Stacked variant uses the exact full official logo graphic
   if (variant === "stacked") {
     const isDark = theme === "dark";
-    const src = isDark ? "/logo-white.png" : "/logo.png";
+    const src = isDark ? "/logo-white.png?v=2" : "/logo.png?v=2";
 
     const content = (
       <div

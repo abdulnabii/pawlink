@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
+  Menu,
+  X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { NotificationCenter } from "@/components/layout/NotificationCenter";
@@ -39,6 +41,7 @@ export function DashboardNav() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const fetchNavUserData = () => {
     const controller = new AbortController();
@@ -67,6 +70,7 @@ export function DashboardNav() {
   };
 
   useEffect(() => {
+    setMobileMenuOpen(false);
     fetchNavUserData();
 
     const handleUpdate = () => {
@@ -107,91 +111,104 @@ export function DashboardNav() {
   const isWhatsAppVerified = user?.notificationPreference?.whatsappVerified;
 
   return (
-    <aside className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 md:min-h-screen border-r border-slate-800">
+    <aside className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 md:min-h-screen border-b md:border-b-0 md:border-r border-slate-800 transition-all duration-200">
       <div>
-        {/* Brand */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        {/* Brand & Mobile Bar */}
+        <div className="p-4 md:p-6 border-b border-slate-800 flex items-center justify-between">
           <PawLinkLogo variant="compact" size="md" theme="dark" href="/dashboard" />
           <div className="flex items-center gap-2">
             <NotificationCenter />
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">
+            <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">
               SaaS Hub
             </span>
+            {/* Mobile Navigation Toggle Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5 text-teal-400" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="p-4 space-y-1.5">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = Boolean(
-              pathname &&
-                (pathname === item.href ||
-                  (item.href !== "/dashboard" && pathname.startsWith(item.href)))
-            );
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                  active
-                    ? "bg-teal-600 text-white shadow-sm shadow-teal-600/30 font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${active ? "text-white" : "text-slate-400"}`} />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* WhatsApp Verification Status Widget */}
-        <div className="mx-4 my-3 p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
-          {loading && !user ? (
-            <div className="space-y-1.5 animate-pulse">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-slate-700" />
-                <div className="h-3 w-28 bg-slate-700 rounded" />
-              </div>
-              <div className="h-2.5 w-full bg-slate-700/60 rounded" />
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-2 text-xs font-semibold mb-1">
-                {isWhatsAppVerified ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="text-emerald-400">WhatsApp Alerts Active</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-amber-300">WhatsApp Not Verified</span>
-                  </>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 leading-tight mb-2">
-                {isWhatsAppVerified
-                  ? "Instant scan & GPS alerts will be dispatched via WhatsApp."
-                  : "Verify your phone number to receive instant scan alerts."}
-              </p>
-              {!isWhatsAppVerified && (
+        {/* Collapsible Mobile Content / Always Visible on Desktop */}
+        <div className={`${mobileMenuOpen ? "block" : "hidden md:block"}`}>
+          {/* Navigation Items */}
+          <nav className="p-4 space-y-1.5">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = Boolean(
+                pathname &&
+                  (pathname === item.href ||
+                    (item.href !== "/dashboard" && pathname.startsWith(item.href)))
+              );
+              return (
                 <Link
-                  href="/dashboard/settings"
-                  className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1"
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                    active
+                      ? "bg-teal-600 text-white shadow-sm shadow-teal-600/30 font-semibold"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  }`}
                 >
-                  <span>Verify Number</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <Icon className={`w-5 h-5 ${active ? "text-white" : "text-slate-400"}`} />
+                  <span>{item.name}</span>
                 </Link>
-              )}
-            </>
-          )}
+              );
+            })}
+          </nav>
+
+          {/* WhatsApp Verification Status Widget */}
+          <div className="mx-4 my-3 p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+            {loading && !user ? (
+              <div className="space-y-1.5 animate-pulse">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-slate-700" />
+                  <div className="h-3 w-28 bg-slate-700 rounded" />
+                </div>
+                <div className="h-2.5 w-full bg-slate-700/60 rounded" />
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-xs font-semibold mb-1">
+                  {isWhatsAppVerified ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="text-emerald-400">WhatsApp Alerts Active</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-amber-300">WhatsApp Not Verified</span>
+                    </>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-tight mb-2">
+                  {isWhatsAppVerified
+                    ? "Instant scan & GPS alerts will be dispatched via WhatsApp."
+                    : "Verify your phone number to receive instant scan alerts."}
+                </p>
+                {!isWhatsAppVerified && (
+                  <Link
+                    href="/dashboard/settings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1"
+                  >
+                    <span>Verify Number</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* User Footer */}
-      <div className="p-4 border-t border-slate-800 space-y-2">
+      {/* User Footer - also hidden on mobile when closed */}
+      <div className={`${mobileMenuOpen ? "block" : "hidden md:block"} p-4 border-t border-slate-800 space-y-2`}>
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white truncate">{user?.name || "Owner"}</p>
@@ -209,6 +226,7 @@ export function DashboardNav() {
         {/* Membership Tier Pill */}
         <Link
           href="/dashboard/settings"
+          onClick={() => setMobileMenuOpen(false)}
           className="flex items-center justify-between p-2 rounded-lg bg-slate-800 hover:bg-slate-700/80 transition-colors text-[11px]"
         >
           <span className="text-slate-400">Plan:</span>

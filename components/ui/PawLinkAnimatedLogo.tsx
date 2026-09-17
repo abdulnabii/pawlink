@@ -121,7 +121,7 @@ export function PawLinkAnimatedLogo({
           {/* Official Emblem Disc */}
           <div className="relative z-10 w-full h-full rounded-full bg-slate-950/80 p-1.5 backdrop-blur-md border border-teal-500/30 flex items-center justify-center shadow-2xl overflow-hidden">
             <img
-              src="/logo-icon.png"
+              src="/logo-icon.png?v=2"
               alt="PawLink Official Emblem"
               className="w-full h-full object-contain drop-shadow-md select-none"
               loading="eager"
