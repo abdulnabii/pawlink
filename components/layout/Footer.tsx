@@ -18,12 +18,6 @@ export function Footer() {
                 <Lock className="w-3.5 h-3.5" />
                 <span>Zero-Tracking Privacy Guarantee</span>
               </div>
-              <Link
-                href="/brand"
-                className="inline-flex items-center gap-1.5 text-xs bg-teal-950/60 hover:bg-teal-900/80 text-teal-300 px-2.5 py-1.5 rounded-lg border border-teal-800/60 transition-colors"
-              >
-                <span>🎨 Brand &amp; Logo Kit</span>
-              </Link>
             </div>
           </div>
 
