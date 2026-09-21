@@ -31,33 +31,40 @@ export async function POST(req: NextRequest) {
       include: { notificationPreference: true },
     });
 
+    // Enforce OTP-only for all administrators: password login is permanently disabled for admins
+    const isAdminAccount =
+      isAdminEmail(email) ||
+      user?.role === "ADMIN" ||
+      user?.role === "SUPER_ADMIN" ||
+      user?.role === "MODERATOR" ||
+      user?.role === "SUPPORT" ||
+      user?.role === "ANALYST";
+
+    if (isAdminAccount) {
+      return NextResponse.json(
+        {
+          error: "ADMIN_PASSWORD_LOGIN_DISABLED",
+          message:
+            "Password authentication is disabled for administrators. Please sign in via the secure Admin One-Time Password (OTP) portal.",
+          requiresAdminOtp: true,
+        },
+        { status: 403 }
+      );
+    }
+
     if (user && user.passwordHash) {
       const isValid = await verifyPassword(password, user.passwordHash);
       if (isValid) {
-        const effectiveRole = isAdminEmail(user.email)
-          ? (user.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : user.role || "ADMIN")
-          : user.role;
-
-        // Auto-upgrade role in DB if designated admin without admin role
-        if (isAdminEmail(user.email) && (user.role === "OWNER" || !user.role)) {
-          db.user.update({ where: { id: user.id }, data: { role: "SUPER_ADMIN" } }).catch(() => {});
-        }
-
         const sessionUser = {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: effectiveRole,
+          role: user.role || "OWNER",
           phone: user.phone,
           authUserId: user.authUserId,
         };
 
         await setSessionCookie(sessionUser);
-
-        if (isAdminEmail(user.email) || effectiveRole === "ADMIN" || effectiveRole === "SUPER_ADMIN") {
-          const { setAdmin2faCookie } = await import("@/lib/admin-2fa");
-          await setAdmin2faCookie(user.email).catch(() => {});
-        }
 
         return NextResponse.json({
           success: true,
